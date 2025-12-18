@@ -45,20 +45,14 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 4px 14px;
+      justify-content: center;
+      padding: 8px 4px 16px;
       border-bottom: 1px solid var(--border);
     }
     .brand img.logo-big {
-      height: 46px;
-      width: 46px;
+      height: 72px;
+      width: 72px;
       object-fit: contain;
-    }
-    .brand .brand-text {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      color: var(--text);
     }
     .nav-link {
       display: block;
@@ -77,11 +71,7 @@
       gap: 10px;
       justify-content: space-between;
     }
-    header img.logo {
-      height: 28px;
-      width: 28px;
-      object-fit: contain;
-    }
+    /* header logo removed */
     h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
     a.nav {
       color: var(--muted);
@@ -172,7 +162,6 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="logo-big" src="assets/logo1.png" alt="ADAM logo" />
-        <div class="brand-text">ADAM</div>
       </div>
       <a class="nav-link" href="index.html">Dashboard</a>
       <a class="nav-link" href="pkb.html">PKB Upload</a>
@@ -183,7 +172,6 @@
 
     <main>
       <header>
-        <img class="logo" src="assets/logo1.png" alt="ADAM logo" />
         <div>
           <h1>Outlet Admin</h1>
           <div style="color: var(--muted); font-size: 13px;">Manually add or update outlets and aliases.</div>

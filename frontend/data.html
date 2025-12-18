@@ -65,20 +65,14 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 4px 14px;
+      justify-content: center;
+      padding: 8px 4px 16px;
       border-bottom: 1px solid var(--border);
     }
     .brand img.logo-big {
-      height: 46px;
-      width: 46px;
+      height: 72px;
+      width: 72px;
       object-fit: contain;
-    }
-    .brand .brand-text {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      color: var(--text);
     }
     .nav-link {
       display: block;
@@ -152,7 +146,9 @@
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <h2>Navigation</h2>
+      <div class="brand">
+        <img class="logo-big" src="assets/logo1.png" alt="ADAM logo" />
+      </div>
       <a class="nav-link" href="index.html">Dashboard</a>
       <a class="nav-link" href="pkb.html">PKB Upload</a>
       <a class="nav-link" href="purchase.html">Purchase Upload</a>
@@ -162,7 +158,6 @@
 
     <main>
       <header>
-        <img class="logo" src="assets/logo1.png" alt="ADAM logo" />
         <div>
           <h1>Data Viewer</h1>
           <div style="color: var(--muted); font-size: 13px;">View recent data and download CSV (Excel-friendly).</div>
