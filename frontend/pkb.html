@@ -35,17 +35,30 @@
       min-height: 100vh;
     }
     .sidebar {
-      background: linear-gradient(180deg, rgba(18,18,26,0.9), rgba(10,10,14,0.95));
+      background: linear-gradient(180deg, rgba(18,18,26,0.95), rgba(10,10,14,0.98));
       border-right: 1px solid var(--border);
       padding: 20px 16px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
-    .sidebar h2 {
-      margin: 0 0 6px;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 4px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand img.logo-big {
+      height: 46px;
+      width: 46px;
+      object-fit: contain;
+    }
+    .brand .brand-text {
       font-size: 18px;
-      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: var(--text);
     }
     .nav-link {
       display: block;
@@ -139,7 +152,10 @@
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <h2>Navigation</h2>
+      <div class="brand">
+        <img class="logo-big" src="assets/logo1.png" alt="ADAM logo" />
+        <div class="brand-text">ADAM</div>
+      </div>
       <a class="nav-link" href="index.html">Dashboard</a>
       <a class="nav-link" href="pkb.html">PKB Upload</a>
       <a class="nav-link" href="purchase.html">Purchase Upload</a>
