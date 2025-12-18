@@ -58,6 +58,14 @@
     .nav-link:hover { border-color: var(--border); background: #13131b; }
     header {
       padding: 32px 28px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header img.logo {
+      height: 32px;
+      width: 32px;
+      object-fit: contain;
     }
     h1 {
       margin: 0;
@@ -122,8 +130,11 @@
     </aside>
     <main>
       <header>
-        <h1>ADAM Console</h1>
-        <p class="lead">Pick a workspace: PKB master, Purchase ingest, Outlets, or Data Viewer.</p>
+        <img class="logo" src="assets/logo1.png" alt="ADAM logo" />
+        <div>
+          <h1>ADAM Console</h1>
+          <p class="lead">Pick a workspace: PKB master, Purchase ingest, Outlets, or Data Viewer.</p>
+        </div>
       </header>
 
       <div class="grid">

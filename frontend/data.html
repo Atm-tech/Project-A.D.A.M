@@ -34,8 +34,14 @@
     header {
       padding: 24px 20px 8px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 10px;
+      justify-content: space-between;
+    }
+    header img.logo {
+      height: 28px;
+      width: 28px;
+      object-fit: contain;
     }
     h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
     a.nav {
@@ -143,6 +149,7 @@
 
     <main>
       <header>
+        <img class="logo" src="assets/logo1.png" alt="ADAM logo" />
         <div>
           <h1>Data Viewer</h1>
           <div style="color: var(--muted); font-size: 13px;">View recent data and download CSV (Excel-friendly).</div>
