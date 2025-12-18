@@ -34,7 +34,7 @@
       min-height: 100vh;
     }
     .sidebar {
-      background: linear-gradient(180deg, rgba(18,18,26,0.95), rgba(10,10,14,0.98));
+      background: #000000;
       border-right: 1px solid var(--border);
       padding: 22px 16px;
       display: flex;
@@ -44,21 +44,16 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 4px 14px;
+      justify-content: center;
+      padding: 10px 4px 16px;
       border-bottom: 1px solid var(--border);
     }
     .brand img.logo-big {
-      height: 46px;
-      width: 46px;
+      height: 144px; /* ~1.5in at 96dpi */
+      width: 144px;
       object-fit: contain;
     }
-    .brand .brand-text {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      color: var(--text);
-    }
+    
     .nav-link {
       display: block;
       padding: 10px 12px;
@@ -74,11 +69,6 @@
       display: flex;
       align-items: center;
       gap: 12px;
-    }
-    header img.logo {
-      height: 32px;
-      width: 32px;
-      object-fit: contain;
     }
     h1 {
       margin: 0;
@@ -137,7 +127,6 @@
     <aside class="sidebar">
       <div class="brand">
         <img class="logo-big" src="assets/logo1.png" alt="ADAM logo" />
-        <div class="brand-text">ADAM</div>
       </div>
       <a class="nav-link" href="pkb.html">PKB Upload</a>
       <a class="nav-link" href="purchase.html">Purchase Upload</a>
@@ -146,7 +135,6 @@
     </aside>
     <main>
       <header>
-        <img class="logo" src="assets/logo1.png" alt="ADAM logo" />
         <div>
           <h1>ADAM Console</h1>
           <p class="lead">Pick a workspace: PKB master, Purchase ingest, Outlets, or Data Viewer.</p>
