@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outlet Admin • ADAM</title>
+  <style>
+    :root {
+      --bg: #0b0b0d;
+      --bg-2: #111116;
+      --card: #16161d;
+      --accent: #ffffff;
+      --accent-2: #d1d5db;
+      --text: #f5f5f7;
+      --muted: #a0a0a8;
+      --border: #26262f;
+      --danger: #ef4444;
+      --shadow: rgba(0, 0, 0, 0.5);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(120% 120% at 20% 10%, rgba(255,255,255,0.05), transparent),
+                  radial-gradient(120% 120% at 80% 0%, rgba(255,255,255,0.04), transparent),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      background: linear-gradient(180deg, rgba(18,18,26,0.9), rgba(10,10,14,0.95));
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      color: var(--accent);
+    }
+    .nav-link {
+      display: block;
+      padding: 10px 12px;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: #0f0f14;
+    }
+    .nav-link:hover { border-color: var(--border); background: #13131b; }
+    header {
+      padding: 24px 20px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    a.nav {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .page {
+      flex: 1;
+      padding: 12px 20px 28px;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(320px, 1fr);
+      gap: 18px;
+    }
+    @media (max-width: 900px) {
+      .page { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: linear-gradient(160deg, var(--card), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 18px 40px var(--shadow);
+    }
+    .card h2 { margin: 0 0 8px; }
+    .card small { color: var(--muted); }
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    input[type="text"] {
+      width: 100%;
+      background: #0f0f14;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .inline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    button {
+      margin-top: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0b0b0d;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.05s ease, box-shadow 0.2s ease;
+      box-shadow: 0 12px 30px rgba(255,255,255,0.12);
+    }
+    button:hover { transform: translateY(-1px); }
+    .status { margin-top: 10px; font-size: 13px; color: var(--muted); }
+    .error { color: var(--danger); }
+    .success { color: var(--accent); }
+    .list {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .pill {
+      display: inline-block;
+      background: #0f0f14;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+    .card-row {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(18,18,24,0.9);
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>Navigation</h2>
+      <a class="nav-link" href="index.html">Dashboard</a>
+      <a class="nav-link" href="pkb.html">PKB Upload</a>
+      <a class="nav-link" href="purchase.html">Purchase Upload</a>
+      <a class="nav-link" href="outlets.html">Outlet Admin</a>
+      <a class="nav-link" href="data.html">Data Viewer</a>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>Outlet Admin</h1>
+          <div style="color: var(--muted); font-size: 13px;">Manually add or update outlets and aliases.</div>
+        </div>
+      </header>
+
+      <div class="page">
+        <div class="card">
+          <h2>Create / Update Outlet</h2>
+          <small>Outlet name required; aliases optional (comma-separated).</small>
+          <label for="outlet-name">Outlet / Site name</label>
+          <input type="text" id="outlet-name" placeholder="e.g., Big Bazaar Chennai" />
+
+          <div class="inline">
+            <div>
+              <label for="city">City</label>
+              <input type="text" id="city" placeholder="Chennai" />
+            </div>
+            <div>
+              <label for="state">State</label>
+              <input type="text" id="state" placeholder="Tamil Nadu" />
+            </div>
+          </div>
+
+          <label for="aliases">Aliases (comma-separated)</label>
+          <input type="text" id="aliases" placeholder="BB Chennai, BigBazaar Chennai" />
+
+          <label for="active">Active?</label>
+          <input type="text" id="active" placeholder="true/false (default true)" />
+
+          <button onclick="saveOutlet()">Save Outlet</button>
+          <div class="status" id="outlet-status"></div>
+        </div>
+
+        <div class="card">
+          <h2>Recent Outlets</h2>
+          <small>Shows latest 20 entries.</small>
+          <div class="list" id="outlet-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+
+    function parseBool(val) {
+      if (val === undefined || val === null) return undefined;
+      const v = String(val).trim().toLowerCase();
+      if (v === "true" || v === "1" || v === "yes") return true;
+      if (v === "false" || v === "0" || v === "no") return false;
+      return undefined;
+    }
+
+    async function saveOutlet() {
+      const statusEl = document.getElementById("outlet-status");
+      statusEl.textContent = "";
+      statusEl.className = "status";
+
+      const outletName = document.getElementById("outlet-name").value.trim();
+      if (!outletName) {
+        statusEl.textContent = "Outlet name is required.";
+        statusEl.className = "status error";
+        return;
+      }
+      const city = document.getElementById("city").value.trim() || null;
+      const state = document.getElementById("state").value.trim() || null;
+      const aliasesRaw = document.getElementById("aliases").value;
+      const aliases = aliasesRaw
+        .split(",")
+        .map(a => a.trim())
+        .filter(Boolean);
+      const activeText = document.getElementById("active").value;
+      const active = parseBool(activeText);
+
+      const payload = {
+        outlet_name: outletName,
+        city,
+        state,
+        is_active: active === undefined ? true : active,
+        aliases,
+      };
+
+      statusEl.textContent = "Saving...";
+
+      try {
+        const res = await fetch(`${API_BASE}/outlets`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        statusEl.textContent = "Saved.";
+        statusEl.className = "status success";
+        await loadOutlets();
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.className = "status error";
+      }
+    }
+
+    async function loadOutlets() {
+      const listEl = document.getElementById("outlet-list");
+      listEl.innerHTML = "Loading...";
+      try {
+        const res = await fetch(`${API_BASE}/outlets?limit=20&offset=0`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        if (!data.length) {
+          listEl.textContent = "No outlets yet.";
+          return;
+        }
+        listEl.innerHTML = "";
+        data.forEach((o) => {
+          const div = document.createElement("div");
+          div.className = "card-row";
+          const aliases = (o.aliases || []).map(a => `<span class=\"pill\">${a.alias_name}</span>`).join(" ");
+          div.innerHTML = `
+            <div style="font-weight:600;">${o.outlet_name}</div>
+            <div style="color:${o.is_active ? '#22c55e' : '#f87171'}; font-size:12px;">${o.is_active ? 'Active' : 'Inactive'}</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">${o.city || ''} ${o.state ? '· ' + o.state : ''}</div>
+            <div style="margin-top:6px;">${aliases || '<span class="pill" style="color: var(--muted);">No aliases</span>'}</div>
+          `;
+          listEl.appendChild(div);
+        });
+      } catch (err) {
+        listEl.textContent = `Error loading outlets: ${err.message}`;
+      }
+    }
+
+    loadOutlets();
+  </script>
+</body>
+</html>

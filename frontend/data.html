@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Viewer • ADAM</title>
+  <style>
+    :root {
+      --bg: #060608;
+      --bg-2: #0d0d11;
+      --card: #12121a;
+      --card-2: #181822;
+      --card-edge: #1f1f2c;
+      --accent: #f5f5f7;
+      --accent-2: #cfd2da;
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --border: #262633;
+      --danger: #ef4444;
+      --shadow: rgba(0, 0, 0, 0.65);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(140% 140% at 20% 10%, rgba(255,255,255,0.07), transparent),
+                  radial-gradient(120% 120% at 80% -10%, rgba(255,255,255,0.05), transparent),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 24px 20px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    a.nav {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      background: linear-gradient(180deg, rgba(18,18,26,0.9), rgba(10,10,14,0.95));
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      color: var(--accent);
+    }
+    .nav-link {
+      display: block;
+      padding: 10px 12px;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: #0f0f14;
+    }
+    .nav-link:hover { border-color: var(--border); background: #13131b; }
+    .page {
+      flex: 1;
+      padding: 12px 20px 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: linear-gradient(160deg, var(--card), var(--card-2) 55%, #0f0f15);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow:
+        0 22px 50px var(--shadow),
+        0 0 0 1px #1a1a24,
+        inset 0 0 0 1px rgba(255,255,255,0.02);
+      display: flex;
+      flex-direction: column;
+    }
+    .card h2 { margin: 0 0 6px; }
+    .card p { margin: 0 0 12px; color: var(--muted); }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0b0b0d;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.05s ease, box-shadow 0.2s ease;
+      box-shadow: 0 12px 30px rgba(255,255,255,0.12);
+    }
+    button:hover { transform: translateY(-1px); }
+    .status { margin-top: 10px; font-size: 13px; color: var(--muted); }
+    .error { color: var(--danger); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+      background: #0f0f14;
+      border: 1px solid var(--border);
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      color: var(--text);
+    }
+    th { background: #12121a; text-align: left; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>Navigation</h2>
+      <a class="nav-link" href="index.html">Dashboard</a>
+      <a class="nav-link" href="pkb.html">PKB Upload</a>
+      <a class="nav-link" href="purchase.html">Purchase Upload</a>
+      <a class="nav-link" href="outlets.html">Outlet Admin</a>
+      <a class="nav-link" href="data.html">Data Viewer</a>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>Data Viewer</h1>
+          <div style="color: var(--muted); font-size: 13px;">View recent data and download CSV (Excel-friendly).</div>
+        </div>
+      </header>
+
+      <div class="page">
+        <div class="card" id="outlets-card">
+          <h2>Outlets</h2>
+          <p>List outlets (limit 200). Uses <code>/outlets</code>.</p>
+          <div class="controls">
+            <button onclick="loadData('outlets')">Load Outlets</button>
+            <button onclick="downloadData('outlets')">Download CSV</button>
+          </div>
+          <div class="status" id="outlets-status"></div>
+          <div class="table-wrap" id="outlets-table"></div>
+        </div>
+
+        <div class="card" id="pkb-card">
+          <h2>PKB Products</h2>
+          <p>List PKB products (limit 200). Set <code>window.DATA_ENDPOINTS.pkb</code> if your API path differs.</p>
+          <div class="controls">
+            <button onclick="loadData('pkb')">Load PKB</button>
+            <button onclick="downloadData('pkb')">Download CSV</button>
+          </div>
+          <div class="status" id="pkb-status"></div>
+          <div class="table-wrap" id="pkb-table"></div>
+          <div class="hint">Default endpoint: /pkb/products?limit=200&offset=0 (implement backend if missing).</div>
+        </div>
+
+        <div class="card" id="purchase-card">
+          <h2>Purchase Raw</h2>
+          <p>List purchase raw rows (limit 200). Set <code>window.DATA_ENDPOINTS.purchase</code> if your API path differs.</p>
+          <div class="controls">
+            <button onclick="loadData('purchase')">Load Purchases</button>
+            <button onclick="downloadData('purchase')">Download CSV</button>
+          </div>
+          <div class="status" id="purchase-status"></div>
+          <div class="table-wrap" id="purchase-table"></div>
+          <div class="hint">Default endpoint: /purchase/raw?limit=200&offset=0 (implement backend if missing).</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const DATA_ENDPOINTS = window.DATA_ENDPOINTS || {
+      outlets: `${API_BASE}/outlets?limit=200&offset=0`,
+      pkb: `${API_BASE}/pkb/products?limit=200&offset=0`,
+      purchase: `${API_BASE}/purchase/raw?limit=200&offset=0`,
+    };
+
+    const state = {
+      outlets: [],
+      pkb: [],
+      purchase: [],
+    };
+
+    function setStatus(key, msg, isError = false) {
+      const el = document.getElementById(`${key}-status`);
+      el.textContent = msg;
+      el.className = `status ${isError ? "error" : ""}`;
+    }
+
+    function renderTable(key, rows) {
+      const wrap = document.getElementById(`${key}-table`);
+      if (!rows || !rows.length) {
+        wrap.innerHTML = '<div class="status">No data.</div>';
+        return;
+      }
+      const headers = Object.keys(rows[0]);
+      const headerHtml = headers.map(h => `<th>${h}</th>`).join("");
+      const bodyHtml = rows.map(r => {
+        const cells = headers.map(h => `<td>${r[h] ?? ""}</td>`).join("");
+        return `<tr>${cells}</tr>`;
+      }).join("");
+      wrap.innerHTML = `<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
+    }
+
+    async function loadData(key) {
+      const url = DATA_ENDPOINTS[key];
+      if (!url) {
+        setStatus(key, "No endpoint configured.", true);
+        return;
+      }
+      setStatus(key, "Loading...");
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        // normalize array or object
+        const rows = Array.isArray(data) ? data : (data.items || data.results || []);
+        state[key] = rows;
+        renderTable(key, rows);
+        setStatus(key, `Loaded ${rows.length} rows.`);
+      } catch (err) {
+        setStatus(key, `Error: ${err.message}`, true);
+        renderTable(key, []);
+      }
+    }
+
+    function downloadData(key) {
+      const rows = state[key] || [];
+      if (!rows.length) {
+        setStatus(key, "No data to download. Load first.", true);
+        return;
+      }
+      const headers = Object.keys(rows[0]);
+      const escape = (v) => {
+        if (v === null || v === undefined) return "";
+        const s = String(v).replace(/"/g, '""');
+        return /[",\r\n]/.test(s) ? `"${s}"` : s;
+      };
+      const csv = [
+        headers.join(","),
+        ...rows.map(r => headers.map(h => escape(r[h])).join(",")),
+      ].join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${key}-export.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus(key, "Download started.");
+    }
+  </script>
+</body>
+</html>

@@ -1,13 +1,15 @@
 import logging
 from io import BytesIO
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
+from app.models.purchase import PurchaseRaw
 from app.services.purchase_service import import_purchase_from_excel
+from app.schemas.purchase import PurchaseRawOut
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -92,3 +94,25 @@ async def upload_purchase_excel(
         "message": "Purchase file processed.",
         **stats,
     }
+
+
+@router.get(
+    "/raw",
+    response_model=List[PurchaseRawOut],
+    summary="List purchase raw rows (paged)",
+)
+def list_purchase_raw(
+    limit: int = 200,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    limit = min(max(limit, 1), 500)
+    offset = max(offset, 0)
+    rows = (
+        db.query(PurchaseRaw)
+        .order_by(PurchaseRaw.raw_id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return rows

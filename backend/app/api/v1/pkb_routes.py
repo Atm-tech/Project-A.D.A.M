@@ -9,6 +9,8 @@ import pandas as pd
 
 from app.deps import get_db
 from app.services.pkb_service import import_pkb_from_excel
+from app.schemas.pkb import PKBOut
+from app.models.pkb import PKBProduct
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -127,3 +129,26 @@ async def upload_pkb_excel(
         "message": "PKB Excel processed successfully.",
         **stats,
     }
+
+
+@router.get(
+    "/products",
+    response_model=list[PKBOut],
+    summary="List PKB products (paged)",
+    tags=["PKB"],
+)
+def list_pkb_products(
+    limit: int = 200,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    limit = min(max(limit, 1), 500)
+    offset = max(offset, 0)
+    items = (
+        db.query(PKBProduct)
+        .order_by(PKBProduct.pkb_id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return items

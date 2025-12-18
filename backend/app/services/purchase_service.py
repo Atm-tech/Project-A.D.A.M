@@ -30,24 +30,163 @@ def _find_outlet(db: Session, site_name: str) -> Outlet | None:
     return alias.outlet if alias else None
 
 
-EXPECTED_HEADERS = {
+REQUIRED_FIELDS = {
+    "site_name",
+    "barcode",
+    "supplier_name",
+    "hsn_code",
+    "division",
+    "section",
+    "department",
+    "article_name_raw",
+    "item_name_raw",
+    "name_raw",
+    "brand_name_raw",
+    "size_raw",
+    "pur_qty",
+    "net_amount",
+    "rsp_raw",
+    "mrp_raw",
+}
+
+# Allowed column aliases from Excel -> model field
+HEADER_ALIASES = {
     "site_name": "site_name",
+    "site": "site_name",
+    "sitecode": "site_name",
+    "outlet": "site_name",
+    "outlet_name": "site_name",
     "barcode": "barcode",
     "supplier_name": "supplier_name",
+    "supplier": "supplier_name",
     "hsn_code": "hsn_code",
+    "hsn": "hsn_code",
     "division": "division",
     "section": "section",
     "department": "department",
     "article_name": "article_name_raw",
+    "article": "article_name_raw",
     "item_name": "item_name_raw",
+    "item": "item_name_raw",
     "name": "name_raw",
+    "product_name": "name_raw",
     "brand_name": "brand_name_raw",
+    "brand": "brand_name_raw",
+    "brandname": "brand_name_raw",
+    "brand_nm": "brand_name_raw",
+    "brand_nm_": "brand_name_raw",
     "size": "size_raw",
-    "pur_qty": "pur_qty",
-    "net_amount": "net_amount",
     "rsp": "rsp_raw",
     "mrp": "mrp_raw",
+    "pur_qty": "pur_qty",
+    "pur": "pur_qty",
+    "qty": "pur_qty",
+    "quantity": "pur_qty",
+    "quantity_purchased": "pur_qty",
+    "purchase_qty": "pur_qty",
+    "purchase_quantity": "pur_qty",
+    "purch_qty": "pur_qty",
+    "npur": "net_amount",
+    "n_pur": "net_amount",
+    "netpur": "net_amount",
+    "net_pur": "net_amount",
+    "net_amount": "net_amount",
+    "net_amt": "net_amount",
+    "netamt": "net_amount",
+    "net_value": "net_amount",
+    "tax": "tax_raw",
+    "cgst": "cgst_raw",
+    "sgst": "sgst_raw",
+    "igst": "igst_raw",
+    "cess": "cess_raw",
+    "batch_no": "batch_no",
+    "batch": "batch_no",
+    "mfg_date": "mfg_date",
+    "expiry_date": "expiry_date",
+    "remarks": "remarks",
+    "invoice_no": "invoice_no",
+    "entry_no": "entry_no",
+    "date": "date",
 }
+
+
+def _normalize_header(header: str) -> str:
+    """Lowercase, strip, and collapse non-alphanumerics to underscore."""
+    cleaned = "".join(ch.lower() if ch.isalnum() else "_" for ch in str(header))
+    return "_".join([segment for segment in cleaned.split("_") if segment])
+
+
+def _maybe_promote_first_row(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    If the file has blank/unnamed headers and the real header is in the first row,
+    promote that row to headers.
+    """
+    if not len(df):
+        return df
+    headers = list(df.columns)
+    unnamed = [str(h).lower().startswith("unnamed") or str(h).strip() == "" for h in headers]
+    if unnamed.count(True) >= max(1, len(headers) // 2):
+        # Treat first row as header
+        df = df.copy()
+        new_headers = [str(h) for h in df.iloc[0].tolist()]
+        df = df.iloc[1:]
+        df.columns = new_headers
+    return df
+
+
+def _build_column_map(df: pd.DataFrame) -> Dict[int, str]:
+    """
+    Build a column index -> model field map using aliases and detect missing required fields.
+    """
+    col_map: Dict[int, str] = {}
+    normalized_seen: list[tuple[int, str, str]] = []  # (index, raw header, normalized)
+    for idx, raw_header in enumerate(df.columns):
+        normalized = _normalize_header(raw_header)
+        normalized_seen.append((idx, str(raw_header), normalized))
+        target = HEADER_ALIASES.get(normalized)
+        if not target:
+            # Heuristics for common variations
+            if "brand" in normalized:
+                target = "brand_name_raw"
+            elif "net" in normalized and ("amt" in normalized or "amount" in normalized or "value" in normalized):
+                target = "net_amount"
+            elif "pur" in normalized or "qty" in normalized or "quantity" in normalized:
+                target = "pur_qty"
+        if target:
+            col_map[idx] = target
+
+    missing = REQUIRED_FIELDS - set(col_map.values())
+    if missing:
+        raise ValueError(
+            f"Missing required columns: {sorted(missing)} "
+            f"(headers: {normalized_seen})"
+        )
+
+    return col_map
+
+
+def _ensure_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, Dict[int, str]]:
+    """
+    Build column map; if required columns are missing, attempt to promote the first row
+    as headers and retry before failing.
+    """
+    try:
+        return df, _build_column_map(df)
+    except ValueError as err:
+        if df.empty:
+            raise
+        # Try promoting the first row as headers
+        fallback_headers = [str(h) for h in df.iloc[0].tolist()]
+        promoted_df = df.iloc[1:].copy()
+        promoted_df.columns = fallback_headers
+        try:
+            return promoted_df, _build_column_map(promoted_df)
+        except ValueError as err2:
+            normalized_fallback = [_normalize_header(h) for h in fallback_headers]
+            raise ValueError(
+                f"{err}; fallback_headers={fallback_headers}; "
+                f"fallback_normalized={normalized_fallback}; error={err2}"
+            ) from err2
 
 
 def import_purchase_from_excel(
@@ -60,15 +199,8 @@ def import_purchase_from_excel(
     - Store every row into purchase_raw
     - Create purchase_processed when PKB + Outlet are available
     """
-    normalized_headers = [str(h).strip().lower().replace(" ", "_") for h in df.columns]
-    col_map: Dict[int, str] = {}
-    for idx, header in enumerate(normalized_headers):
-        if header in EXPECTED_HEADERS:
-            col_map[idx] = EXPECTED_HEADERS[header]
-
-    missing = set(EXPECTED_HEADERS.values()) - set(col_map.values())
-    if missing:
-        raise ValueError(f"Missing required columns: {sorted(missing)}")
+    df = _maybe_promote_first_row(df)
+    df, col_map = _ensure_columns(df)
 
     stats = {
         "raw_inserted": 0,

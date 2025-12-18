@@ -40,6 +40,11 @@ class PurchaseRawCreate(PurchaseRawBase):
     pass
 
 
+class PurchaseRawOut(PurchaseRawBase):
+    raw_id: int
+    uploaded_at: Optional[datetime] = None
+
+
 class PurchaseProcessedOut(BaseModel):
     purchase_id: int
     barcode: str

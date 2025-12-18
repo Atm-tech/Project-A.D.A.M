@@ -7,14 +7,26 @@ from pydantic import BaseModel
 
 class PKBBase(BaseModel):
     barcode: str
-    supplier_name: str
-    hsn_code: str
-    division: str
-    section: str
-    department: str
-    size: str
-    rsp: Decimal
-    mrp: Decimal
+    supplier_name: Optional[str] = None
+    hsn_code: Optional[str] = None
+    division: Optional[str] = None
+    section: Optional[str] = None
+    department: Optional[str] = None
+    article_name: Optional[str] = None
+    item_name: Optional[str] = None
+    product_name: Optional[str] = None
+    brand_name: Optional[str] = None
+    size: Optional[str] = None
+    weight: Optional[str] = None
+    rsp: Optional[Decimal] = None
+    mrp: Optional[Decimal] = None
+    cgst: Optional[Decimal] = None
+    sgst: Optional[Decimal] = None
+    cess: Optional[Decimal] = None
+    igst: Optional[Decimal] = None
+    tax: Optional[Decimal] = None
+    remarks: Optional[str] = None
+    category_6: Optional[str] = None
 
     class Config:
         from_attributes = True  # Pydantic v2 compatible
