@@ -17,7 +17,6 @@ def _normalize_header(h: str) -> str:
     """
     Normalize Excel header into a stable snake_case key:
     'CAT-6' -> 'cat_6'
-    'Supplier Name' -> 'supplier_name'
     """
     return (
         str(h)
@@ -39,13 +38,6 @@ HEADER_MAP: Dict[str, str] = {
     # Barcode
     "barcode": "barcode",
     "bar_code": "barcode",
-
-    # Supplier
-    "supplier_name": "supplier_name",
-    "suppliername": "supplier_name",
-    "supplier": "supplier_name",
-    "supplier_name_1": "supplier_name",
-    "supplier name": "supplier_name",
 
     # HSN
     "hsn_code": "hsn_code",
@@ -80,6 +72,29 @@ HEADER_MAP: Dict[str, str] = {
     # Tax
     "tax": "tax",
 }
+
+PKB_COMPARE_FIELDS = [
+    "barcode",
+    "category_6",
+    "category_group",
+    "hsn_code",
+    "division",
+    "section",
+    "department",
+    "article_name",
+    "item_name",
+    "product_name",
+    "brand_name",
+    "size",
+    "weight",
+    "rsp",
+    "mrp",
+    "cgst",
+    "sgst",
+    "cess",
+    "igst",
+    "tax",
+]
 
 
 # -------------------------------------------------
@@ -147,6 +162,53 @@ _WEIGHT_RE = re.compile(
 )
 
 
+def resolve_category_group(category_6: Any) -> str | None:
+    """
+    Map raw category text to one of the three buckets:
+    - FMCG
+    - Packing
+    - Hyper
+    """
+    if category_6 is None:
+        return None
+    text = str(category_6).strip().lower()
+    if not text:
+        return None
+    if "fmcg" in text:
+        return "fmcg"
+    if "pack" in text:
+        return "packing"
+    if "hyper" in text:
+        return "hyper"
+    return None
+
+
+def _latest_by_barcode(db: Session, barcode: str) -> PKBProduct | None:
+    return (
+        db.query(PKBProduct)
+        .filter(PKBProduct.barcode == barcode)
+        .order_by(PKBProduct.version.desc(), PKBProduct.pkb_id.desc())
+        .first()
+    )
+
+
+def _rows_differ(existing: PKBProduct, incoming: Dict[str, Any]) -> bool:
+    for field in PKB_COMPARE_FIELDS:
+        existing_val = getattr(existing, field, None)
+        incoming_val = incoming.get(field)
+        if existing_val != incoming_val:
+            return True
+    return False
+
+
+def _deactivate_versions(db: Session, barcode: str) -> None:
+    (
+        db.query(PKBProduct)
+        .filter(PKBProduct.barcode == barcode, PKBProduct.is_active.is_(True))
+        .update({PKBProduct.is_active: False}, synchronize_session=False)
+    )
+
+
 def extract_weight_from_text(text: str) -> str | None:
     """
     Simple weight parser:
@@ -185,14 +247,14 @@ def import_pkb_from_excel(db: Session, df: pd.DataFrame) -> Dict[str, int]:
         {
             "total_rows": ...,
             "inserted": ...,
-            "updated": ...,
+            "version_bumped": ...,
             "skipped_missing_barcode": ...,
         }
     """
 
     total_rows = 0
     inserted = 0
-    updated = 0
+    version_bumped = 0
     skipped_missing_barcode = 0
 
     # Normalize headers once
@@ -243,6 +305,7 @@ def import_pkb_from_excel(db: Session, df: pd.DataFrame) -> Dict[str, int]:
             continue
 
         row_data["barcode"] = barcode_str
+        row_data["category_group"] = resolve_category_group(row_data.get("category_6"))
 
         # Auto weight if missing
         if not row_data.get("weight"):
@@ -254,21 +317,22 @@ def import_pkb_from_excel(db: Session, df: pd.DataFrame) -> Dict[str, int]:
             if weight:
                 row_data["weight"] = weight
 
-        # UPSERT by barcode
-        product: PKBProduct | None = (
-            db.query(PKBProduct)
-            .filter(PKBProduct.barcode == barcode_str)
-            .first()
-        )
+        existing = _latest_by_barcode(db, barcode_str)
 
-        if product:
-            # Update existing
-            for k, v in row_data.items():
-                setattr(product, k, v)
-            updated += 1
+        if existing:
+            if _rows_differ(existing, row_data):
+                _deactivate_versions(db, barcode_str)
+                new_version = (existing.version or 1) + 1
+                product = PKBProduct(**row_data, version=new_version, is_active=True)
+                db.add(product)
+                inserted += 1
+                version_bumped += 1
+            else:
+                # Keep the latest as active
+                if not existing.is_active:
+                    existing.is_active = True
         else:
-            # Insert new
-            product = PKBProduct(**row_data)
+            product = PKBProduct(**row_data, version=1, is_active=True)
             db.add(product)
             inserted += 1
 
@@ -277,6 +341,6 @@ def import_pkb_from_excel(db: Session, df: pd.DataFrame) -> Dict[str, int]:
     return {
         "total_rows": total_rows,
         "inserted": inserted,
-        "updated": updated,
+        "version_bumped": version_bumped,
         "skipped_missing_barcode": skipped_missing_barcode,
     }

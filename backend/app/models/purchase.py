@@ -15,6 +15,8 @@ class PurchaseRaw(Base):
     division = Column(String(100), nullable=False)
     section = Column(String(100), nullable=False)
     department = Column(String(100), nullable=False)
+    category_6 = Column(String(150), nullable=True)
+    category_group = Column(String(50), nullable=True)
 
     article_name_raw = Column(String(255), nullable=False)
     item_name_raw = Column(String(255), nullable=False)
@@ -62,6 +64,8 @@ class PurchaseProcessed(Base):
     division = Column(String(100), nullable=False)
     section = Column(String(100), nullable=False)
     department = Column(String(100), nullable=False)
+    category_6 = Column(String(150), nullable=True)
+    category_group = Column(String(50), nullable=True)
 
     pur_qty = Column(Numeric(10, 3), nullable=False)
     net_amount = Column(Numeric(10, 2), nullable=False)

@@ -1,20 +1,24 @@
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, func, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 
 class PKBProduct(Base):
     __tablename__ = "pkb_products"
+    __table_args__ = (
+        Index("ix_pkb_products_barcode_version", "barcode", "version", unique=True),
+    )
 
     pkb_id = Column(Integer, primary_key=True, index=True)
 
     # BASE FIELDS
     remarks = Column(String(255), nullable=True)
     category_6 = Column(String(255), nullable=True)
+    category_group = Column(String(50), nullable=True)
+    version = Column(Integer, nullable=False, default=1)
 
-    barcode = Column(String(50), unique=True, index=True)
+    barcode = Column(String(50), index=True)
 
-    supplier_name = Column(String(150), nullable=True)
     hsn_code = Column(String(50), nullable=True)
 
     division = Column(String(150), nullable=True)

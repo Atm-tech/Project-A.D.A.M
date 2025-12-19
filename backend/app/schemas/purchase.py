@@ -13,6 +13,8 @@ class PurchaseRawBase(BaseModel):
     division: str
     section: str
     department: str
+    category_6: Optional[str] = None
+    category_group: Optional[str] = None
     article_name_raw: str
     item_name_raw: str
     name_raw: str
@@ -56,6 +58,8 @@ class PurchaseProcessedOut(BaseModel):
     division: str
     section: str
     department: str
+    category_6: Optional[str] = None
+    category_group: Optional[str] = None
     pur_qty: Decimal
     net_amount: Decimal
     rsp: Decimal

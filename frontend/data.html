@@ -207,6 +207,42 @@
           <div class="table-wrap" id="purchase-table"></div>
           <div class="hint">Default endpoint: /purchase/raw?limit=200&offset=0 (implement backend if missing).</div>
         </div>
+
+        <div class="card" id="closing-card">
+          <h2>Closing Stock</h2>
+          <p>Barcode + outlet + qty snapshot.</p>
+          <div class="controls">
+            <button onclick="loadData('closing')">Load Closing</button>
+            <button onclick="downloadData('closing')">Download CSV</button>
+          </div>
+          <div class="status" id="closing-status"></div>
+          <div class="table-wrap" id="closing-table"></div>
+          <div class="hint">Endpoint: /closing?limit=200&offset=0</div>
+        </div>
+
+        <div class="card" id="sales-card">
+          <h2>Sales</h2>
+          <p>Sales rows (date, qty, value) per outlet.</p>
+          <div class="controls">
+            <button onclick="loadData('sales')">Load Sales</button>
+            <button onclick="downloadData('sales')">Download CSV</button>
+          </div>
+          <div class="status" id="sales-status"></div>
+          <div class="table-wrap" id="sales-table"></div>
+          <div class="hint">Endpoint: /sales?limit=200&offset=0</div>
+        </div>
+
+        <div class="card" id="perpetual-card">
+          <h2>Perpetual Closing</h2>
+          <p>Perpetual outlet-level stock for reconciliation.</p>
+          <div class="controls">
+            <button onclick="loadData('perpetual')">Load Perpetual</button>
+            <button onclick="downloadData('perpetual')">Download CSV</button>
+          </div>
+          <div class="status" id="perpetual-status"></div>
+          <div class="table-wrap" id="perpetual-table"></div>
+          <div class="hint">Endpoint: /perpetual?limit=200&offset=0</div>
+        </div>
       </div>
     </main>
   </div>
@@ -217,12 +253,18 @@
       outlets: `${API_BASE}/outlets?limit=200&offset=0`,
       pkb: `${API_BASE}/pkb/products?limit=200&offset=0`,
       purchase: `${API_BASE}/purchase/raw?limit=200&offset=0`,
+      closing: `${API_BASE}/closing?limit=200&offset=0`,
+      sales: `${API_BASE}/sales?limit=200&offset=0`,
+      perpetual: `${API_BASE}/perpetual?limit=200&offset=0`,
     };
 
     const state = {
       outlets: [],
       pkb: [],
       purchase: [],
+      closing: [],
+      sales: [],
+      perpetual: [],
     };
 
     function setStatus(key, msg, isError = false) {

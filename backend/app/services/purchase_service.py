@@ -1,5 +1,5 @@
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import pandas as pd
 from sqlalchemy import func
@@ -10,6 +10,29 @@ from app.models.pkb import PKBProduct
 from app.models.purchase import PurchaseProcessed, PurchaseRaw
 from app.utils.text_cleaner import normalize_barcode, normalize_name, normalize_whitespace
 from app.utils.weight_parser import parse_weight
+
+PKB_COMPARE_FIELDS = [
+    "barcode",
+    "hsn_code",
+    "division",
+    "section",
+    "department",
+    "article_name",
+    "item_name",
+    "product_name",
+    "brand_name",
+    "size",
+    "weight",
+    "rsp",
+    "mrp",
+    "cgst",
+    "sgst",
+    "cess",
+    "igst",
+    "tax",
+    "category_6",
+    "category_group",
+]
 
 
 def _clean_decimal(value: Any) -> Decimal | None:
@@ -28,6 +51,79 @@ def _find_outlet(db: Session, site_name: str) -> Outlet | None:
         return outlet
     alias = db.query(OutletAlias).filter(func.upper(OutletAlias.alias_name) == norm).first()
     return alias.outlet if alias else None
+
+
+def _resolve_category_group(category_6: Any) -> str | None:
+    if category_6 is None:
+        return None
+    text = str(category_6).strip().lower()
+    if not text:
+        return None
+    if "fmcg" in text:
+        return "fmcg"
+    if "pack" in text:
+        return "packing"
+    if "hyper" in text:
+        return "hyper"
+    return None
+
+
+def _latest_pkb(db: Session, barcode: str) -> PKBProduct | None:
+    return (
+        db.query(PKBProduct)
+        .filter(PKBProduct.barcode == barcode)
+        .order_by(PKBProduct.version.desc(), PKBProduct.pkb_id.desc())
+        .first()
+    )
+
+
+def _pkb_rows_differ(existing: PKBProduct, incoming: Dict[str, Any]) -> bool:
+    for field in PKB_COMPARE_FIELDS:
+        existing_val = getattr(existing, field, None)
+        incoming_val = incoming.get(field)
+        if existing_val != incoming_val:
+            return True
+    return False
+
+
+def _deactivate_pkb_versions(db: Session, barcode: str) -> None:
+    (
+        db.query(PKBProduct)
+        .filter(PKBProduct.barcode == barcode, PKBProduct.is_active.is_(True))
+        .update({PKBProduct.is_active: False}, synchronize_session=False)
+    )
+
+
+def _build_pkb_payload_from_purchase(raw: PurchaseRaw, weight_str: str | None, existing: PKBProduct | None) -> Dict[str, Any]:
+    """
+    Construct a PKB-like payload from purchase raw row, keeping existing category
+    grouping if available.
+    """
+    category_6 = raw.category_6 or (existing.category_6 if existing else None)
+    category_group = raw.category_group or (existing.category_group if existing else None)
+
+    return {
+        "barcode": raw.barcode,
+        "hsn_code": raw.hsn_code,
+        "division": raw.division,
+        "section": raw.section,
+        "department": raw.department,
+        "article_name": raw.article_name_raw,
+        "item_name": raw.item_name_raw,
+        "product_name": raw.name_raw,
+        "brand_name": raw.brand_name_raw,
+        "size": weight_str or raw.size_raw,
+        "rsp": raw.rsp_raw,
+        "mrp": raw.mrp_raw,
+        "cgst": raw.cgst_raw,
+        "sgst": raw.sgst_raw,
+        "cess": raw.cess_raw,
+        "igst": raw.igst_raw,
+        "tax": raw.tax_raw,
+        "weight": weight_str,
+        "category_6": category_6,
+        "category_group": category_group,
+    }
 
 
 REQUIRED_FIELDS = {
@@ -61,6 +157,9 @@ HEADER_ALIASES = {
     "supplier": "supplier_name",
     "hsn_code": "hsn_code",
     "hsn": "hsn_code",
+    "cat_6": "category_6",
+    "category_6": "category_6",
+    "category6": "category_6",
     "division": "division",
     "section": "section",
     "department": "department",
@@ -205,8 +304,9 @@ def import_purchase_from_excel(
     stats = {
         "raw_inserted": 0,
         "processed_inserted": 0,
-        "missing_pkb": 0,
         "missing_outlet": 0,
+        "pkb_created": 0,
+        "pkb_version_bumped": 0,
     }
 
     for _, row in df.iterrows():
@@ -222,6 +322,8 @@ def import_purchase_from_excel(
             division=normalize_whitespace(row_data.get("division", "")),
             section=normalize_whitespace(row_data.get("section", "")),
             department=normalize_whitespace(row_data.get("department", "")),
+            category_6=(normalize_whitespace(row_data.get("category_6", "")) or None),
+            category_group=_resolve_category_group(row_data.get("category_6")),
             article_name_raw=normalize_whitespace(row_data.get("article_name_raw", "")),
             item_name_raw=normalize_whitespace(row_data.get("item_name_raw", "")),
             name_raw=normalize_whitespace(row_data.get("name_raw", "")),
@@ -250,17 +352,29 @@ def import_purchase_from_excel(
             stats["missing_outlet"] += 1
             continue
 
-        product: PKBProduct | None = (
-            db.query(PKBProduct)
-            .filter(PKBProduct.barcode == raw.barcode)
-            .first()
-        )
-        if not product:
-            stats["missing_pkb"] += 1
-            continue
-
         value, unit = parse_weight(raw.size_raw)
         weight_str = f"{value} {unit}" if value and unit else None
+
+        existing_pkb = _latest_pkb(db, raw.barcode)
+        pkb_payload = _build_pkb_payload_from_purchase(raw, weight_str, existing_pkb)
+
+        if existing_pkb:
+            if _pkb_rows_differ(existing_pkb, pkb_payload):
+                _deactivate_pkb_versions(db, raw.barcode)
+                new_version = (existing_pkb.version or 1) + 1
+                product = PKBProduct(**pkb_payload, version=new_version, is_active=True)
+                db.add(product)
+                db.flush()
+                stats["pkb_version_bumped"] += 1
+            else:
+                product = existing_pkb
+                if not product.is_active:
+                    product.is_active = True
+        else:
+            product = PKBProduct(**pkb_payload, version=1, is_active=True)
+            db.add(product)
+            db.flush()
+            stats["pkb_created"] += 1
 
         processed = PurchaseProcessed(
             raw_id=raw.raw_id,
@@ -271,19 +385,21 @@ def import_purchase_from_excel(
             item_name=product.item_name or raw.item_name_raw,
             name=product.product_name or raw.name_raw,
             brand_name=product.brand_name or raw.brand_name_raw,
-            size=weight_str or raw.size_raw,
+            size=product.size or weight_str or raw.size_raw,
             division=product.division or raw.division,
             section=product.section or raw.section,
             department=product.department or raw.department,
+            category_6=product.category_6 or raw.category_6,
+            category_group=product.category_group or raw.category_group,
             pur_qty=raw.pur_qty,
             net_amount=raw.net_amount,
             rsp=product.rsp or raw.rsp_raw,
             mrp=product.mrp or raw.mrp_raw,
-            cgst=product.cgst,
-            sgst=product.sgst,
-            cess=product.cess,
-            igst=product.igst,
-            tax=product.tax,
+            cgst=product.cgst or raw.cgst_raw,
+            sgst=product.sgst or raw.sgst_raw,
+            cess=product.cess or raw.cess_raw,
+            igst=product.igst or raw.igst_raw,
+            tax=product.tax or raw.tax_raw,
             processed_by=uploaded_by,
         )
         db.add(processed)

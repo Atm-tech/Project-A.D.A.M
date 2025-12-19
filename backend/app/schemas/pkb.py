@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 class PKBBase(BaseModel):
     barcode: str
-    supplier_name: Optional[str] = None
     hsn_code: Optional[str] = None
     division: Optional[str] = None
     section: Optional[str] = None
@@ -27,6 +26,9 @@ class PKBBase(BaseModel):
     tax: Optional[Decimal] = None
     remarks: Optional[str] = None
     category_6: Optional[str] = None
+    category_group: Optional[str] = None
+    version: Optional[int] = 1
+    is_active: Optional[bool] = True
 
     class Config:
         from_attributes = True  # Pydantic v2 compatible
@@ -37,7 +39,6 @@ class PKBCreate(PKBBase):
 
 
 class PKBUpdate(BaseModel):
-    supplier_name: Optional[str] = None
     hsn_code: Optional[str] = None
     division: Optional[str] = None
     section: Optional[str] = None
