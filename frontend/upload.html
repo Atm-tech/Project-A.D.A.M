@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Data Viewer</title>
+  <title>Uploads</title>
   <style>
     :root {
       --bg: #0b0b0d;
@@ -114,27 +114,25 @@
       cursor: pointer;
     }
     .detail { padding: 12px 20px 28px; }
-    .controls {
+    .form {
       display: flex;
+      flex-direction: column;
       gap: 10px;
-      flex-wrap: wrap;
-      margin: 10px 0;
+      margin-top: 10px;
+      max-width: 460px;
     }
-    .status { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
-    .error { color: var(--danger); }
-    table {
+    input[type="file"],
+    input[type="text"] {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
+      background: #0f0f14;
       border: 1px solid var(--border);
-    }
-    th, td {
-      border: 1px solid var(--border);
-      padding: 6px 8px;
+      border-radius: 10px;
+      padding: 10px;
       color: var(--text);
+      font-size: 14px;
     }
-    th { background: #12121a; text-align: left; }
-    .table-wrap { overflow: auto; max-height: 60vh; }
+    .status { color: var(--muted); font-size: 13px; }
+    .error { color: var(--danger); }
     .back { margin-bottom: 12px; }
   </style>
 </head>
@@ -145,29 +143,29 @@
         <img class="logo-big" src="assets/ring.png" alt="App logo" />
       </div>
       <a class="nav-link" href="index.html">Console</a>
-      <a class="nav-link" href="upload.html">Uploads</a>
-      <a class="nav-link active" href="data.html">Data Viewer</a>
+      <a class="nav-link active" href="upload.html">Uploads</a>
+      <a class="nav-link" href="data.html">Data Viewer</a>
     </aside>
 
     <main>
       <header>
-        <h1 id="page-title">Data Viewer</h1>
-        <p class="lead" id="page-subtitle">Choose a dataset to view.</p>
+        <h1 id="page-title">Uploads</h1>
+        <p class="lead" id="page-subtitle">Choose what you want to upload.</p>
       </header>
 
       <div id="hub" class="grid"></div>
 
       <div id="detail" class="detail" style="display: none;">
-        <button class="button back" onclick="goHome()">← Back to viewer</button>
+        <button class="button back" onclick="goHome()">← Back to uploads</button>
         <div class="card">
           <h2 id="detail-title"></h2>
           <p id="detail-desc"></p>
-          <div class="controls">
-            <button class="button" onclick="loadData()">Load</button>
-            <button class="button" onclick="downloadData()">Download CSV</button>
+          <div class="form">
+            <input type="file" id="upload-file" />
+            <input type="text" id="upload-user" placeholder="Uploaded by (optional)" />
+            <button class="button" onclick="uploadFile()">Upload</button>
+            <div class="status" id="upload-status"></div>
           </div>
-          <div class="status" id="data-status"></div>
-          <div class="table-wrap" id="data-table"></div>
         </div>
       </div>
     </main>
@@ -175,36 +173,36 @@
 
   <script>
     const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
-    const datasets = {
+    const uploads = {
       pkb: {
-        title: "PKB Data",
-        desc: "Browse PKB products (limit 200).",
-        endpoint: `${API_BASE}/pkb/products?limit=200&offset=0`,
+        title: "PKB Upload",
+        desc: "Upload PKB master Excel to seed catalog data.",
+        endpoint: `${API_BASE}/pkb/upload-excel`,
+        accept: ".xlsx,.xls,.xlsm,.xltx,.xltm",
       },
       purchase: {
-        title: "Purchase Data",
-        desc: "Browse purchase raw rows.",
-        endpoint: `${API_BASE}/purchase/raw?limit=200&offset=0`,
+        title: "Purchase Upload",
+        desc: "Upload purchase Excel/CSV for processing and matching.",
+        endpoint: `${API_BASE}/purchase/upload-excel`,
+        accept: ".xlsx,.xls,.xlsm,.xltx,.xltm,.csv",
       },
       closing: {
-        title: "Closing Stock Data",
-        desc: "Barcode + outlet + qty snapshot.",
-        endpoint: `${API_BASE}/closing?limit=200&offset=0`,
+        title: "Closing Stock Upload",
+        desc: "Upload closing stock snapshot (barcode, outlet, qty).",
+        endpoint: `${API_BASE}/closing/upload-excel`,
+        accept: ".xlsx,.xls,.xlsm,.xltx,.xltm,.csv",
       },
       sales: {
-        title: "Sales Data",
-        desc: "Sales rows (date, qty, value) per outlet.",
-        endpoint: `${API_BASE}/sales?limit=200&offset=0`,
+        title: "Sales Upload",
+        desc: "Upload sales (date, barcode, qty, outlet, amount).",
+        endpoint: `${API_BASE}/sales/upload-excel`,
+        accept: ".xlsx,.xls,.xlsm,.xltx,.xltm,.csv",
       },
       perpetual: {
-        title: "Perpetual Data",
-        desc: "Perpetual outlet-level stock for reconciliation.",
-        endpoint: `${API_BASE}/perpetual?limit=200&offset=0`,
-      },
-      outlets: {
-        title: "Outlets",
-        desc: "Outlet list with aliases.",
-        endpoint: `${API_BASE}/outlets?limit=200&offset=0`,
+        title: "Perpetual Closing Upload",
+        desc: "Upload perpetual closing for reconciliation.",
+        endpoint: `${API_BASE}/perpetual/upload-excel`,
+        accept: ".xlsx,.xls,.xlsm,.xltx,.xltm,.csv",
       },
     };
 
@@ -212,21 +210,21 @@
     const detail = document.getElementById("detail");
     const detailTitle = document.getElementById("detail-title");
     const detailDesc = document.getElementById("detail-desc");
-    const statusEl = document.getElementById("data-status");
-    const tableWrap = document.getElementById("data-table");
+    const fileInput = document.getElementById("upload-file");
+    const userInput = document.getElementById("upload-user");
+    const statusEl = document.getElementById("upload-status");
     const pageTitle = document.getElementById("page-title");
     const pageSubtitle = document.getElementById("page-subtitle");
 
     const params = new URLSearchParams(window.location.search);
     const type = params.get("type");
     let currentKey = null;
-    let stateRows = [];
 
     function renderHub() {
-      pageTitle.textContent = "Data Viewer";
-      pageSubtitle.textContent = "Choose a dataset to view.";
+      pageTitle.textContent = "Uploads";
+      pageSubtitle.textContent = "Choose what you want to upload.";
       hub.innerHTML = "";
-      Object.entries(datasets).forEach(([key, cfg]) => {
+      Object.entries(uploads).forEach(([key, cfg]) => {
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
@@ -243,14 +241,15 @@
     }
 
     function openDetail(key) {
-      const cfg = datasets[key];
+      const cfg = uploads[key];
       if (!cfg) return;
-      history.replaceState(null, "", `data.html?type=${key}`);
+      history.replaceState(null, "", `upload.html?type=${key}`);
       currentKey = key;
       detailTitle.textContent = cfg.title;
       detailDesc.textContent = cfg.desc;
+      fileInput.value = "";
+      fileInput.setAttribute("accept", cfg.accept);
       statusEl.textContent = "";
-      tableWrap.innerHTML = "";
       hub.style.display = "none";
       detail.style.display = "block";
       pageTitle.textContent = cfg.title;
@@ -258,81 +257,45 @@
     }
 
     function goHome() {
-      history.replaceState(null, "", "data.html");
+      history.replaceState(null, "", "upload.html");
       currentKey = null;
-      stateRows = [];
       renderHub();
     }
 
-    function renderTable(rows) {
-      if (!rows || !rows.length) {
-        tableWrap.innerHTML = '<div class="status">No data.</div>';
-        return;
-      }
-      const headers = Object.keys(rows[0]);
-      const headHtml = headers.map(h => `<th>${h}</th>`).join("");
-      const bodyHtml = rows.map(r => {
-        const cells = headers.map(h => `<td>${r[h] ?? ""}</td>`).join("");
-        return `<tr>${cells}</tr>`;
-      }).join("");
-      tableWrap.innerHTML = `<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
-    }
-
-    async function loadData() {
-      if (!currentKey || !datasets[currentKey]) {
-        statusEl.textContent = "Pick a dataset first.";
+    async function uploadFile() {
+      const cfgKey = currentKey || params.get("type");
+      const cfg = uploads[cfgKey];
+      const url = cfg?.endpoint;
+      if (!cfg) {
+        statusEl.textContent = "Pick an upload first.";
         statusEl.className = "status error";
         return;
       }
-      const url = datasets[currentKey].endpoint;
-      statusEl.textContent = "Loading...";
+      const file = fileInput.files?.[0];
+      if (!file) {
+        statusEl.textContent = "Choose a file first.";
+        statusEl.className = "status error";
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      if (userInput.value.trim()) form.append("uploaded_by", userInput.value.trim());
+      statusEl.textContent = "Uploading...";
       statusEl.className = "status";
       try {
-        const res = await fetch(url);
-        const data = await res.json();
+        const res = await fetch(url, { method: "POST", body: form });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || res.statusText);
-        const rows = Array.isArray(data) ? data : (data.items || data.results || []);
-        stateRows = rows;
-        renderTable(rows);
-        statusEl.textContent = `Loaded ${rows.length} rows.`;
+        statusEl.textContent = "Upload complete.";
+        statusEl.className = "status";
       } catch (err) {
-        stateRows = [];
-        tableWrap.innerHTML = "";
-        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.textContent = `Upload failed: ${err.message}`;
         statusEl.className = "status error";
       }
     }
 
-    function downloadData() {
-      if (!stateRows.length) {
-        statusEl.textContent = "No data to download. Load first.";
-        statusEl.className = "status error";
-        return;
-      }
-      const headers = Object.keys(stateRows[0]);
-      const escape = (v) => {
-        if (v === null || v === undefined) return "";
-        const s = String(v).replace(/"/g, '""');
-        return /[\",\\r\\n]/.test(s) ? `"${s}"` : s;
-      };
-      const csv = [
-        headers.join(","),
-        ...stateRows.map(r => headers.map(h => escape(r[h])).join(",")),
-      ].join("\\r\\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${currentKey || "export"}-export.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      statusEl.textContent = "Download started.";
-      statusEl.className = "status";
-    }
-
-    if (type && datasets[type]) {
+    if (type && uploads[type]) {
+      currentKey = type;
       openDetail(type);
     } else {
       renderHub();
