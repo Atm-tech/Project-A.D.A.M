@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Manager</title>
+  <link rel="stylesheet" href="common.css" />
+  <style>
+    header { padding: 28px 24px 12px; display: flex; justify-content: space-between; align-items: center; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 18px 40px var(--shadow); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 12px 18px 28px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    th { background: rgba(255,255,255,0.03); }
+    label { display: block; margin: 8px 0 4px; font-weight: 600; }
+    input, select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0f0f14; color: var(--text); }
+    button { padding: 10px 12px; border-radius: 10px; border: none; cursor: pointer; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0b0d; font-weight: 700; width: 100%; margin-top: 8px; }
+    .msg { font-size: 13px; min-height: 18px; margin-top: 6px; }
+    .msg.ok { color: #9cffc7; }
+    .msg.err { color: #ffb3b3; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo-big" src="assets/ring.png" alt="App logo" />
+      </div>
+      <a class="nav-link" href="index.html" data-roles="admin">Console</a>
+      <a class="nav-link" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
+      <a class="nav-link" href="upload.html" data-roles="admin,manager">Uploads</a>
+      <a class="nav-link" href="data.html" data-roles="admin,manager">Data Viewer</a>
+      <a class="nav-link active" href="user-manager.html" data-roles="admin">User Manager</a>
+      <button class="nav-link" style="text-align:left; border:1px solid var(--border);" onclick="logout()" data-roles="admin">Logout</button>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <h1>User Manager</h1>
+          <div class="muted">Approve users, set roles, reset passwords.</div>
+        </div>
+      </header>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Pending Requests</h2>
+          <div id="pendingTable"></div>
+        </div>
+
+        <div class="card">
+          <h2>Reset Password</h2>
+          <label>User ID</label>
+          <input id="resetUserId" placeholder="user id" />
+          <label>New password</label>
+          <input id="resetPassword" type="password" placeholder="new password" />
+          <button onclick="resetPassword()">Reset</button>
+          <div id="resetMsg" class="msg"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const AUTH_KEY = "audit_auth";
+    const raw = localStorage.getItem(AUTH_KEY);
+    const role = (() => {
+      if (!raw) return "guest";
+      try { const a = JSON.parse(raw); return a?.role || "guest"; } catch { return "guest"; }
+    })();
+    document.querySelectorAll("[data-roles]").forEach(el => {
+      const allowed = (el.getAttribute("data-roles") || "").split(",").map(s => s.trim());
+      if (allowed.length && !allowed.includes(role)) {
+        el.style.display = "none";
+      }
+    });
+
+    function logout() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = "login.html";
+    }
+
+    async function fetchJSON(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      return res.json();
+    }
+
+    function renderPending(rows) {
+      const el = document.getElementById("pendingTable");
+      if (!rows.length) {
+        el.innerHTML = '<div class="muted small">No pending users.</div>';
+        return;
+      }
+      const head = "<tr><th>ID</th><th>Name</th><th>Username</th><th>Phone</th><th>Outlet</th><th>Action</th></tr>";
+      const body = rows.map(r => `
+        <tr>
+          <td>${r.user_id}</td>
+          <td>${r.full_name ?? ""}</td>
+          <td>${r.username}</td>
+          <td>${r.phone ?? ""}</td>
+          <td>${r.requested_outlet_id ?? ""}</td>
+          <td style="display:flex; gap:6px;">
+            <button style="width:100%;padding:8px;" onclick="approveUser(${r.user_id}, true, 'user')">Approve User</button>
+            <button style="width:100%;padding:8px;" onclick="approveUser(${r.user_id}, true, 'manager')">Approve Manager</button>
+            <button style="width:100%;padding:8px;background:#555;color:#fff;" onclick="approveUser(${r.user_id}, false)">Reject</button>
+          </td>
+        </tr>
+      `).join("");
+      el.innerHTML = `<table>${head}${body}</table>`;
+    }
+
+    async function loadPending() {
+      const rows = await fetchJSON(`${API_BASE}/auth/pending`);
+      renderPending(rows);
+    }
+
+    async function approveUser(userId, approve, role="user") {
+      try {
+        const form = new URLSearchParams();
+        form.append("user_id", userId);
+        form.append("approve", approve ? "true" : "false");
+        form.append("role", role);
+        await fetchJSON(`${API_BASE}/auth/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form,
+        });
+        await loadPending();
+      } catch (e) {
+        alert(e.message || "Action failed");
+      }
+    }
+
+    async function resetPassword() {
+      const userId = document.getElementById("resetUserId").value.trim();
+      const password = document.getElementById("resetPassword").value;
+      const msg = document.getElementById("resetMsg");
+      msg.textContent = "";
+      msg.className = "msg";
+      if (!userId || !password) {
+        msg.textContent = "User ID and new password required.";
+        msg.classList.add("err");
+        return;
+      }
+      try {
+        const form = new URLSearchParams();
+        form.append("user_id", userId);
+        form.append("new_password", password);
+        await fetchJSON(`${API_BASE}/auth/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form,
+        });
+        msg.textContent = "Password reset.";
+        msg.classList.add("ok");
+      } catch (e) {
+        msg.textContent = e.message || "Reset failed.";
+        msg.classList.add("err");
+      }
+    }
+
+    loadPending();
+  </script>
+</body>
+</html>

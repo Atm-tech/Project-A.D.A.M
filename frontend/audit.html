@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Console</title>
+  <link rel="stylesheet" href="common.css" />
+  <style>
+    header {
+      padding: 24px 20px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    .muted { color: var(--muted); }
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .content-grid {
+      padding: 12px 18px 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.4);
+    }
+    .card h2 { margin: 0 0 8px; font-size: 18px; }
+    .card h3 { margin: 12px 0 6px; font-size: 15px; }
+    label { display: block; margin: 10px 0 4px; font-weight: 600; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 14px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #050507;
+      font-weight: 800;
+      width: 100%;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+    .stack { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    th { background: rgba(255,255,255,0.03); }
+    .status { font-size: 12px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); display: inline-block; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .small { font-size: 12px; color: var(--muted); }
+    .link { color: var(--accent); cursor: pointer; font-weight: 600; }
+    .hidden { display: none; }
+    .msg { margin-top: 6px; font-size: 13px; min-height: 18px; }
+    .msg.ok { color: #9cffc7; }
+    .msg.err { color: #ffb3b3; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo-big" src="assets/ring.png" alt="App logo" />
+      </div>
+      <a class="nav-link" href="index.html" data-roles="admin">Console</a>
+      <a class="nav-link active" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
+      <a class="nav-link" href="upload.html" data-roles="admin">Uploads</a>
+      <a class="nav-link" href="data.html" data-roles="admin">Data Viewer</a>
+      <a class="nav-link" href="user-manager.html" data-roles="admin">User Manager</a>
+      <button class="nav-link" style="text-align:left; border:1px solid var(--border);" onclick="logout()" data-roles="admin,manager,user">Logout</button>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <h1>Audit Console</h1>
+          <div class="muted small">API: <code id="apiBase"></code></div>
+        </div>
+        <div class="flex-between">
+          <div class="pill" id="userBadge"></div>
+          <button style="width:auto;padding:8px 12px;" onclick="logout()">Logout</button>
+        </div>
+      </header>
+
+      <div class="content-grid">
+        <div class="card admin-only">
+          <h2>Admin: Create Audit</h2>
+          <div id="adminBlock">
+            <label>Name</label>
+            <input id="auditName" placeholder="Mid-year audit" />
+            <div class="row">
+              <div>
+                <label>Start date</label>
+                <input type="date" id="auditStart" />
+              </div>
+              <div>
+                <label>Expiry date</label>
+                <input type="date" id="auditExpiry" />
+              </div>
+            </div>
+            <label>Outlets (Ctrl+Click to multi-select)</label>
+            <select id="auditOutlets" multiple size="6"></select>
+            <button onclick="createAudit()">Create audit</button>
+            <div id="adminMsg" class="msg"></div>
+          </div>
+          <div id="adminOnlyHint" class="muted small"></div>
+        </div>
+
+        <div class="card admin-only">
+          <h2>Admin/Manager: Upload Expected</h2>
+          <label>Audit</label>
+          <select id="uploadAudit"></select>
+          <label>File (CSV/XLSX with outlet, barcode, book_qty)</label>
+          <input type="file" id="uploadFile" />
+          <button onclick="uploadExpected()">Upload</button>
+          <div id="uploadMsg" class="msg"></div>
+        </div>
+
+        <div class="card manager-only">
+          <h2>Manager: Accept & Assign</h2>
+          <label>Audit</label>
+          <select id="acceptAudit"></select>
+          <label>Outlet</label>
+          <select id="acceptOutlet"></select>
+          <div class="row">
+            <button onclick="acceptAudit(true)">Accept</button>
+            <button onclick="acceptAudit(false)">Reject</button>
+          </div>
+          <h3>Assign User</h3>
+          <label>User name</label>
+          <input id="assignUser" placeholder="user1" />
+          <button onclick="assignUser()">Assign to outlet</button>
+          <div id="assignMsg" class="msg"></div>
+          <div class="muted small">Assignments are per outlet; users must scan only their outlet.</div>
+          <button style="margin-top:10px;" onclick="submitOutlet()">Submit outlet audit</button>
+          <div id="submitOutletMsg" class="msg"></div>
+        </div>
+
+        <div class="card user-only">
+          <h2>User: Scan</h2>
+          <label>Audit</label>
+          <select id="scanAudit"></select>
+          <label>Outlet</label>
+          <select id="scanOutlet"></select>
+          <label>Assignment (optional)</label>
+          <input id="scanAssignmentId" placeholder="auto-detect by user/outlet" />
+          <div class="row">
+            <div>
+              <label>Barcode</label>
+              <input id="scanBarcode" placeholder="scan barcode" />
+            </div>
+            <div>
+              <label>Qty</label>
+              <input id="scanQty" type="number" step="0.01" value="1" />
+            </div>
+          </div>
+          <label>Device ref (optional)</label>
+          <input id="scanDevice" placeholder="phone id" />
+          <button onclick="scanItem()">Scan</button>
+          <div id="scanMsg" class="msg"></div>
+          <button style="margin-top:8px;" onclick="submitAssignment()">Submit my assignment</button>
+          <div id="submitAssignmentMsg" class="msg"></div>
+        </div>
+
+        <div class="card admin-manager" style="grid-column: 1 / -1;">
+          <div class="flex-between">
+            <h2>Audit Monitor</h2>
+            <button style="width:auto" onclick="reloadAll()">Refresh</button>
+          </div>
+          <div class="row">
+            <div>
+              <label>Audit</label>
+              <select id="summaryAudit" onchange="loadSummary()"></select>
+            </div>
+            <div>
+              <label>Outlet (optional)</label>
+              <select id="summaryOutlet" onchange="loadSummary()"></select>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="small muted">Per-barcode summary</div>
+            <div id="summaryTable"></div>
+            <div class="small muted">By category (division/section/department/category_6)</div>
+            <div id="categoryTable"></div>
+            <div class="small muted">User productivity</div>
+            <div id="userTable"></div>
+          </div>
+          <div class="stack">
+            <div class="small muted">Audits</div>
+            <div id="auditsList"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const AUTH_KEY = "audit_auth";
+    document.getElementById("apiBase").textContent = API_BASE;
+    const rawAuth = localStorage.getItem(AUTH_KEY);
+    const enforcedOutletId = (() => {
+      try {
+        const a = rawAuth ? JSON.parse(rawAuth) : null;
+        if (!a) return null;
+        if ((a.role === "manager" || a.role === "user") && a.outletId) {
+          return a.outletId;
+        }
+        return null;
+      } catch { return null; }
+    })();
+
+    function getAuth() {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    function applyRoleVisibility(role) {
+      const isAdmin = role === "admin";
+      const isManager = role === "manager";
+      const isUser = role === "user";
+      document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin));
+      document.querySelectorAll(".manager-only").forEach(el => el.classList.toggle("hidden", !isManager));
+      document.querySelectorAll(".user-only").forEach(el => el.classList.toggle("hidden", !isUser));
+      document.querySelectorAll(".admin-manager").forEach(el => el.classList.toggle("hidden", !(isAdmin || isManager)));
+      document.querySelectorAll("[data-roles]").forEach(el => {
+        const allowed = (el.getAttribute("data-roles") || "").split(",").map(s => s.trim());
+        if (allowed.length && !allowed.includes(role)) {
+          el.style.display = "none";
+        }
+      });
+    }
+
+    function requireAuth() {
+      const auth = getAuth();
+      if (!auth) {
+        window.location.href = "login.html";
+        return null;
+      }
+      document.getElementById("userBadge").textContent = auth.username + " · " + auth.role;
+      if (auth.role !== "admin") {
+        document.getElementById("adminBlock").classList.add("hidden");
+        document.getElementById("adminOnlyHint").textContent = "Login as admin to create audits.";
+      }
+      applyRoleVisibility(auth.role);
+      return auth;
+    }
+    function logout() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = "login.html";
+    }
+
+    async function fetchJSON(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      return await res.json();
+    }
+
+    let outlets = [];
+    let audits = [];
+
+    function setSelectOptions(id, items, multi=false, disabled=false) {
+      const sel = document.getElementById(id);
+      sel.innerHTML = "";
+      items.forEach(it => {
+        const opt = document.createElement("option");
+        opt.value = it.value ?? "";
+        opt.textContent = it.label ?? "";
+        sel.appendChild(opt);
+      });
+      if (sel.options.length) sel.selectedIndex = 0;
+      sel.disabled = disabled;
+    }
+
+    async function loadOutlets() {
+      outlets = await fetchJSON(`${API_BASE}/outlets?limit=500`);
+      let filtered = outlets;
+      const disableOutletSelects = !!enforcedOutletId;
+      if (enforcedOutletId) {
+        filtered = outlets.filter(o => o.outlet_id === enforcedOutletId);
+      }
+      const outletOpts = filtered.map(o => ({ value: o.outlet_id, label: o.outlet_name }));
+      fillSelect("auditOutlets", outlets.map(o => ({ value: o.outlet_id, label: o.outlet_name })), true);
+      setSelectOptions("acceptOutlet", outletOpts, false, disableOutletSelects);
+      setSelectOptions("scanOutlet", outletOpts, false, disableOutletSelects);
+      setSelectOptions("summaryOutlet", [{ value: enforcedOutletId || "", label: enforcedOutletId ? "My outlet" : "All outlets" }].concat(outletOpts), false, disableOutletSelects);
+    }
+
+    async function loadAudits() {
+      audits = await fetchJSON(`${API_BASE}/audits?limit=200`);
+      const options = audits.map(a => ({ value: a.audit_id, label: `${a.name} (#${a.audit_id})` }));
+      ["uploadAudit","acceptAudit","scanAudit","summaryAudit"].forEach(id => fillSelect(id, options));
+      renderAuditList();
+    }
+
+    function fillSelect(id, items, isMulti = false) {
+      const sel = document.getElementById(id);
+      sel.innerHTML = "";
+      if (!isMulti) {
+        items.forEach(it => {
+          const opt = document.createElement("option");
+          opt.value = it.value ?? "";
+          opt.textContent = it.label ?? "";
+          sel.appendChild(opt);
+        });
+      } else {
+        items.forEach(it => {
+          const opt = document.createElement("option");
+          opt.value = it.value ?? "";
+          opt.textContent = it.label ?? "";
+          sel.appendChild(opt);
+        });
+      }
+    }
+
+    function getSelectedOutlets() {
+      const sel = document.getElementById("auditOutlets");
+      return Array.from(sel.selectedOptions).map(o => Number(o.value));
+    }
+
+    function setMsg(id, msg, ok=false) {
+      const el = document.getElementById(id);
+      el.textContent = msg || "";
+      el.className = `msg ${ok ? "ok" : "err"}`;
+    }
+
+    async function createAudit() {
+      const auth = getAuth();
+      if (auth?.role !== "admin") return;
+      const name = document.getElementById("auditName").value.trim();
+      const start = document.getElementById("auditStart").value;
+      const expiry = document.getElementById("auditExpiry").value;
+      const outletIds = getSelectedOutlets();
+      if (!name || !start || !expiry || outletIds.length === 0) {
+        setMsg("adminMsg", "Fill all fields and select outlets.");
+        return;
+      }
+      try {
+        await fetchJSON(`${API_BASE}/audits`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, start_date: start, expiry_date: expiry, outlet_ids: outletIds, created_by: auth.username })
+        });
+        setMsg("adminMsg", "Audit created.", true);
+        await loadAudits();
+      } catch (e) {
+        setMsg("adminMsg", e.message);
+      }
+    }
+
+    async function uploadExpected() {
+      const auth = getAuth();
+      const auditId = document.getElementById("uploadAudit").value;
+      const file = document.getElementById("uploadFile").files[0];
+      if (!auditId || !file) {
+        setMsg("uploadMsg", "Select audit and file.");
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      form.append("uploaded_by", auth?.username || "unknown");
+      try {
+        await fetchJSON(`${API_BASE}/audits/${auditId}/upload`, { method: "POST", body: form });
+        setMsg("uploadMsg", "File uploaded and ingested.", true);
+        await loadAudits();
+        await loadSummary();
+      } catch (e) {
+        setMsg("uploadMsg", e.message);
+      }
+    }
+
+    async function acceptAudit(isAccept) {
+      const auth = getAuth();
+      const auditId = document.getElementById("acceptAudit").value;
+      let outletId = document.getElementById("acceptOutlet").value;
+      if (enforcedOutletId) outletId = enforcedOutletId;
+      if (!auditId || !outletId) {
+        setMsg("assignMsg", "Pick audit and outlet.");
+        return;
+      }
+      try {
+        await fetchJSON(`${API_BASE}/audits/${auditId}/outlets/accept`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outlet_id: Number(outletId), accepted_by: auth.username, acceptance_status: isAccept ? "accepted" : "rejected" })
+        });
+        setMsg("assignMsg", isAccept ? "Outlet accepted." : "Outlet rejected.", true);
+        await loadAudits();
+      } catch (e) {
+        setMsg("assignMsg", e.message);
+      }
+    }
+
+    async function assignUser() {
+      const auth = getAuth();
+      const auditId = document.getElementById("acceptAudit").value;
+      const outletId = document.getElementById("acceptOutlet").value;
+      const userName = document.getElementById("assignUser").value.trim();
+      if (!auditId || !outletId || !userName) {
+        setMsg("assignMsg", "Audit, outlet, and user are required.");
+        return;
+      }
+      try {
+        await fetchJSON(`${API_BASE}/audits/${auditId}/assignments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outlet_id: Number(outletId), user_name: userName, assigned_by: auth?.username })
+        });
+        setMsg("assignMsg", "User assigned.", true);
+        await loadAudits();
+      } catch (e) {
+        setMsg("assignMsg", e.message);
+      }
+    }
+
+    function findAssignment(auditId, outletId, userName) {
+      const audit = audits.find(a => a.audit_id == auditId);
+      if (!audit) return null;
+      return (audit.assignments || []).find(a => a.outlet_id == outletId && a.user_name === userName);
+    }
+
+    async function scanItem() {
+      const auth = getAuth();
+      const auditId = document.getElementById("scanAudit").value;
+      let outletId = document.getElementById("scanOutlet").value;
+      if (enforcedOutletId) outletId = enforcedOutletId;
+      const barcode = document.getElementById("scanBarcode").value.trim();
+      const qty = document.getElementById("scanQty").value;
+      const device = document.getElementById("scanDevice").value.trim();
+      let assignmentId = document.getElementById("scanAssignmentId").value.trim();
+
+      if (!auditId || !outletId || !barcode) {
+        setMsg("scanMsg", "Audit, outlet, barcode required.");
+        return;
+      }
+
+      if (!assignmentId) {
+        const found = findAssignment(auditId, outletId, auth.username);
+        if (found) assignmentId = found.assignment_id;
+      }
+
+      try {
+        await fetchJSON(`${API_BASE}/audits/${auditId}/scan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            barcode,
+            qty: Number(qty || 1),
+            outlet_id: Number(outletId),
+            user_name: auth.username,
+            assignment_id: assignmentId ? Number(assignmentId) : null,
+            device_ref: device || null,
+          }),
+        });
+        setMsg("scanMsg", "Scan recorded.", true);
+        document.getElementById("scanBarcode").value = "";
+        await loadSummary();
+      } catch (e) {
+        setMsg("scanMsg", e.message);
+      }
+    }
+
+    async function submitAssignment() {
+      const auth = getAuth();
+      const auditId = document.getElementById("scanAudit").value;
+      const outletId = document.getElementById("scanOutlet").value;
+      let assignmentId = document.getElementById("scanAssignmentId").value.trim();
+      if (!assignmentId) {
+        const found = findAssignment(auditId, outletId, auth.username);
+        if (found) assignmentId = found.assignment_id;
+      }
+      if (!auditId || !assignmentId) {
+        setMsg("submitAssignmentMsg", "Need audit and assignment.");
+        return;
+      }
+      try {
+        await fetchJSON(`${API_BASE}/audits/${auditId}/assignments/${assignmentId}/submit`, { method: "POST" });
+        setMsg("submitAssignmentMsg", "Assignment submitted.", true);
+        await loadAudits();
+      } catch (e) {
+        setMsg("submitAssignmentMsg", e.message);
+      }
+    }
+
+    async function submitOutlet() {
+      const auth = getAuth();
+      const auditId = document.getElementById("acceptAudit").value;
+      let outletId = document.getElementById("acceptOutlet").value;
+      if (enforcedOutletId) outletId = enforcedOutletId;
+      if (!auditId || !outletId) {
+        setMsg("submitOutletMsg", "Pick audit and outlet.");
+        return;
+      }
+      try {
+        await fetchJSON(`${API_BASE}/audits/${auditId}/outlets/${outletId}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ submitted_by: auth.username }),
+        });
+        setMsg("submitOutletMsg", "Outlet submitted.", true);
+        await loadAudits();
+      } catch (e) {
+        setMsg("submitOutletMsg", e.message);
+      }
+    }
+
+    function renderTable(containerId, rows, columns) {
+      const el = document.getElementById(containerId);
+      if (!rows || rows.length === 0) {
+        el.innerHTML = '<div class="muted small">No data</div>';
+        return;
+      }
+      const head = columns.map(c => `<th>${c.label}</th>`).join("");
+      const body = rows.map(r => `<tr>${columns.map(c => `<td>${c.format ? c.format(r[c.key], r) : (r[c.key] ?? "")}</td>`).join("")}</tr>`).join("");
+      el.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    async function loadSummary() {
+      const auditId = document.getElementById("summaryAudit").value;
+      const outletId = document.getElementById("summaryOutlet").value;
+      if (!auditId) return;
+      try {
+        const query = outletId ? `?outlet_id=${outletId}` : "";
+        const [summary, byCat, users] = await Promise.all([
+          fetchJSON(`${API_BASE}/audits/${auditId}/summary${query}`),
+          fetchJSON(`${API_BASE}/audits/${auditId}/summary/by-category${query}`),
+          fetchJSON(`${API_BASE}/audits/${auditId}/user-summary${query}`),
+        ]);
+        renderTable("summaryTable", summary, [
+          { key: "barcode", label: "Barcode" },
+          { key: "article_name", label: "Article" },
+          { key: "division", label: "Division" },
+          { key: "section", label: "Section" },
+          { key: "department", label: "Department" },
+          { key: "category_6", label: "Category6" },
+          { key: "book_qty", label: "Book" },
+          { key: "scanned_qty", label: "Scanned" },
+          { key: "variance", label: "Variance" },
+          { key: "remaining", label: "Remaining" },
+        ]);
+        renderTable("categoryTable", byCat, [
+          { key: "division", label: "Division" },
+          { key: "section", label: "Section" },
+          { key: "department", label: "Department" },
+          { key: "category_6", label: "Category6" },
+          { key: "book_qty", label: "Book" },
+          { key: "scanned_qty", label: "Scanned" },
+          { key: "variance", label: "Variance" },
+          { key: "remaining", label: "Remaining" },
+        ]);
+        renderTable("userTable", users, [
+          { key: "user_name", label: "User" },
+          { key: "outlet_id", label: "Outlet" },
+          { key: "scan_count", label: "#Scans" },
+          { key: "total_qty", label: "Qty" },
+        ]);
+      } catch (e) {
+        document.getElementById("summaryTable").innerHTML = `<div class="msg err">${e.message}</div>`;
+      }
+    }
+
+    function renderAuditList() {
+      const el = document.getElementById("auditsList");
+      if (!audits.length) {
+        el.innerHTML = '<div class="muted small">No audits.</div>';
+        return;
+      }
+      el.innerHTML = audits.map(a => {
+        const outlets = (a.outlets || []).map(o => `${o.outlet_id} (${o.acceptance_status}/${o.submission_status})`).join(", ");
+        const assignments = (a.assignments || []).map(x => `${x.user_name}@${x.outlet_id} (${x.status})`).join(", ");
+        return `<div class="pill" style="margin:4px 0;">#${a.audit_id} ${a.name} · ${a.status} · outlets: ${outlets || "none"} · assignments: ${assignments || "none"}</div>`;
+      }).join("");
+    }
+
+    async function reloadAll() {
+      await Promise.all([loadOutlets(), loadAudits()]);
+      await loadSummary();
+    }
+
+    (async function init() {
+      const auth = requireAuth();
+      if (!auth) return;
+      await reloadAll();
+    })();
+  </script>
+</body>
+</html>

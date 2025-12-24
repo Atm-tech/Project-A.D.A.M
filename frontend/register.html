@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account</title>
+  <link rel="stylesheet" href="common.css" />
+  <style>
+    header { padding: 28px 24px 12px; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 18px 40px var(--shadow);
+      max-width: 520px;
+    }
+    label { display: block; margin: 10px 0 4px; font-weight: 600; }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0f0f14;
+      color: var(--text);
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0b0b0d;
+      font-weight: 800;
+      margin-top: 14px;
+      cursor: pointer;
+    }
+    .msg { margin-top: 8px; font-size: 13px; min-height: 18px; }
+    .msg.ok { color: #9cffc7; }
+    .msg.err { color: #ffb3b3; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo-big" src="assets/ring.png" alt="App logo" />
+      </div>
+      <a class="nav-link" href="login.html" data-roles="guest,admin,manager,user">Back to Login</a>
+      <a class="nav-link" href="index.html" data-roles="admin">Console</a>
+      <a class="nav-link" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
+      <a class="nav-link" href="upload.html" data-roles="admin,manager">Uploads</a>
+      <a class="nav-link" href="data.html" data-roles="admin,manager">Data Viewer</a>
+    </aside>
+
+    <main>
+      <header>
+        <h1>Create Account</h1>
+      </header>
+      <div style="padding: 12px 18px 28px;">
+        <div class="card">
+          <label>Full name</label>
+          <input id="fullName" placeholder="Your name" />
+          <label>Username (unique)</label>
+          <input id="username" placeholder="username" />
+          <label>Phone (unique)</label>
+          <input id="phone" placeholder="phone number" />
+          <label>Outlet</label>
+          <select id="outletSelect"></select>
+          <label>Password</label>
+          <input id="password" type="password" placeholder="password" />
+          <label>Confirm password</label>
+          <input id="confirmPassword" type="password" placeholder="confirm password" />
+          <button onclick="register()">Request Account</button>
+          <div id="msg" class="msg"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const AUTH_KEY = "audit_auth";
+    const raw = localStorage.getItem(AUTH_KEY);
+    const role = (() => {
+      if (!raw) return "guest";
+      try { const a = JSON.parse(raw); return a?.role || "guest"; } catch { return "guest"; }
+    })();
+    document.querySelectorAll("[data-roles]").forEach(el => {
+      const allowed = (el.getAttribute("data-roles") || "").split(",").map(s => s.trim());
+      if (allowed.length && !allowed.includes(role)) {
+        el.style.display = "none";
+      }
+    });
+
+    async function fetchJSON(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      return res.json();
+    }
+
+    async function loadOutlets() {
+      const outlets = await fetchJSON(`${API_BASE}/outlets?limit=500`);
+      const sel = document.getElementById("outletSelect");
+      sel.innerHTML = outlets.map(o => `<option value="${o.outlet_id}">${o.outlet_name}</option>`).join("");
+    }
+
+    async function register() {
+      const fullName = document.getElementById("fullName").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const outletId = document.getElementById("outletSelect").value;
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+      const msg = document.getElementById("msg");
+      msg.textContent = "";
+      msg.className = "msg";
+
+      if (!fullName || !username || !phone || !outletId || !password || !confirmPassword) {
+        msg.textContent = "All fields are required.";
+        msg.classList.add("err");
+        return;
+      }
+
+      try {
+        const form = new URLSearchParams();
+        form.append("full_name", fullName);
+        form.append("username", username);
+        form.append("phone", phone);
+        form.append("outlet_id", outletId);
+        form.append("password", password);
+        form.append("confirm_password", confirmPassword);
+        await fetchJSON(`${API_BASE}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form,
+        });
+        msg.textContent = "Account request submitted. Await admin approval.";
+        msg.classList.add("ok");
+      } catch (e) {
+        msg.textContent = e.message || "Registration failed.";
+        msg.classList.add("err");
+      }
+    }
+
+    loadOutlets();
+  </script>
+</body>
+</html>

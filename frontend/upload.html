@@ -4,77 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Uploads</title>
+  <link rel="stylesheet" href="common.css" />
   <style>
-    :root {
-      --bg: #0b0b0d;
-      --bg-2: #111116;
-      --card: #16161d;
-      --accent: #ffffff;
-      --accent-2: #d1d5db;
-      --text: #f5f5f7;
-      --muted: #a0a0a8;
-      --border: #26262f;
-      --shadow: rgba(0, 0, 0, 0.5);
-      --danger: #ef4444;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: radial-gradient(120% 120% at 20% 10%, rgba(255,255,255,0.05), transparent),
-                  radial-gradient(120% 120% at 80% 0%, rgba(255,255,255,0.04), transparent),
-                  var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    .layout {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      min-height: 100vh;
-    }
-    .sidebar {
-      background: #000000;
-      border-right: 1px solid var(--border);
-      padding: 20px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px 6px 16px;
-      border-bottom: 1px solid var(--border);
-      background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.06), transparent 55%),
-                  radial-gradient(circle at 70% 70%, rgba(255,255,255,0.03), transparent 60%),
-                  #050507;
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.05),
-        0 12px 30px rgba(0,0,0,0.35);
-    }
-    .brand img.logo-big {
-      height: 90px;
-      width: 90px;
-      object-fit: contain;
-      filter: drop-shadow(0 10px 18px rgba(0,0,0,0.45));
-      transform: translateZ(0);
-    }
-    .nav-link {
-      display: block;
-      width: 100%;
-      text-align: left;
-      padding: 10px 12px;
-      color: var(--text);
-      text-decoration: none;
-      border-radius: 10px;
-      border: 1px solid transparent;
-      background: #0f0f14;
-    }
-    .nav-link:hover { border-color: var(--border); background: #13131b; }
-    .nav-link.active { border-color: var(--accent-2); color: var(--accent); }
     header {
       padding: 28px 24px 12px;
     }
@@ -142,9 +73,12 @@
       <div class="brand">
         <img class="logo-big" src="assets/ring.png" alt="App logo" />
       </div>
-      <a class="nav-link" href="index.html">Console</a>
-      <a class="nav-link active" href="upload.html">Uploads</a>
-      <a class="nav-link" href="data.html">Data Viewer</a>
+      <a class="nav-link" href="index.html" data-roles="admin">Console</a>
+      <a class="nav-link" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
+      <a class="nav-link active" href="upload.html" data-roles="admin,manager">Uploads</a>
+      <a class="nav-link" href="data.html" data-roles="admin,manager">Data Viewer</a>
+      <a class="nav-link" href="user-manager.html" data-roles="admin">User Manager</a>
+      <button class="nav-link" style="text-align:left; border:1px solid var(--border);" onclick="logout()" data-roles="admin,manager,user">Logout</button>
     </aside>
 
     <main>
@@ -173,6 +107,24 @@
 
   <script>
     const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const AUTH_KEY = "audit_auth";
+    const raw = localStorage.getItem(AUTH_KEY);
+    const role = (() => {
+      if (!raw) return "guest";
+      try { const a = JSON.parse(raw); return a?.role || "guest"; } catch { return "guest"; }
+    })();
+    document.querySelectorAll("[data-roles]").forEach(el => {
+      const allowed = (el.getAttribute("data-roles") || "").split(",").map(s => s.trim());
+      if (allowed.length && !allowed.includes(role)) {
+        el.style.display = "none";
+      }
+    });
+
+    function logout() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = "login.html";
+    }
+
     const uploads = {
       pkb: {
         title: "PKB Upload",
