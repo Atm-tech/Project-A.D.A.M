@@ -64,6 +64,7 @@
     .muted { color: var(--muted); font-size: 13px; margin-top: 10px; }
     .error { color: #ffb3b3; margin-top: 10px; min-height: 18px; }
   </style>
+  <script src="api-base.js"></script>
 </head>
 <body>
   <div class="shell">
@@ -83,7 +84,7 @@
 
   <script>
     const AUTH_KEY = "audit_auth";
-    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const API_BASE = window.API_BASE;
 
     function saveAuth(auth) {
       localStorage.setItem(AUTH_KEY, JSON.stringify(auth));

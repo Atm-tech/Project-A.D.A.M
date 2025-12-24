@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Console</title>
   <link rel="stylesheet" href="common.css" />
+  <script src="api-base.js"></script>
   <style>
     .nav-link.active { border-color: var(--accent-2); color: var(--accent); }
     header {
@@ -103,7 +104,11 @@
         </div>
       </div>
 
-  <footer>API base: http://localhost:8000/api/v1 (override via <code>window.API_BASE</code> in console)</footer>
+  <footer id="apiBaseFooter"></footer>
+  <script>
+    const footer = document.getElementById("apiBaseFooter");
+    footer.innerHTML = `API base: ${window.API_BASE} (override via <code>window.API_BASE</code> or ?apiBase=...)`;
+  </script>
     </main>
   </div>
   <script>

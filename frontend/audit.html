@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Audit Console</title>
   <link rel="stylesheet" href="common.css" />
+  <script src="api-base.js"></script>
   <style>
     header {
       padding: 24px 20px 14px;
@@ -222,7 +223,7 @@
   </div>
 
   <script>
-    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const API_BASE = window.API_BASE;
     const AUTH_KEY = "audit_auth";
     document.getElementById("apiBase").textContent = API_BASE;
     const rawAuth = localStorage.getItem(AUTH_KEY);

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Account</title>
   <link rel="stylesheet" href="common.css" />
+  <script src="api-base.js"></script>
   <style>
     header { padding: 28px 24px 12px; }
     h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
@@ -81,7 +82,7 @@
   </div>
 
   <script>
-    const API_BASE = window.API_BASE || "http://localhost:8000/api/v1";
+    const API_BASE = window.API_BASE;
     const AUTH_KEY = "audit_auth";
     const raw = localStorage.getItem(AUTH_KEY);
     const role = (() => {
