@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outlet Manager</title>
+  <link rel="stylesheet" href="common.css" />
+  <script src="api-base.js"></script>
+  <style>
+    header { padding: 28px 24px 12px; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    p.lead { margin: 6px 0 0; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 12px 20px 28px; }
+    @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: linear-gradient(160deg, var(--card), var(--bg-2)); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: 0 18px 40px var(--shadow); }
+    .card h2 { margin: 0 0 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    label { display: block; margin: 10px 0 6px; color: var(--muted); font-size: 13px; }
+    input[type="text"] { width: 100%; background: #0f0f14; border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: var(--text); font-size: 14px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    .button, .ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border-radius: 10px; border: none; cursor: pointer; font-weight: 700; letter-spacing: 0.1px; }
+    .button { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0b0d; }
+    .ghost { background: #0f0f14; color: var(--text); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--border); }
+    th, td { border: 1px solid var(--border); padding: 8px 10px; color: var(--text); text-align: left; vertical-align: top; }
+    th { background: #12121a; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: #0f0f14; border: 1px solid var(--border); margin: 2px; }
+    .alias-remove { background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 12px; }
+    .status { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .error { color: var(--danger); }
+    .success { color: #22c55e; }
+    .table-wrap { overflow: auto; max-height: 60vh; }
+    .tag { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo-big" src="assets/ring.png" alt="App logo" />
+      </div>
+      <a class="nav-link" href="index.html" data-roles="admin">Console</a>
+      <a class="nav-link" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
+      <a class="nav-link" href="upload.html" data-roles="admin,manager">Uploads</a>
+      <a class="nav-link" href="data.html" data-roles="admin,manager">Data Viewer</a>
+      <a class="nav-link" href="user-manager.html" data-roles="admin">User Manager</a>
+      <a class="nav-link active" href="outlet-manager.html" data-roles="admin">Outlet Manager</a>
+      <button class="nav-link" style="text-align:left; border:1px solid var(--border);" onclick="logout()" data-roles="admin,manager,user">Logout</button>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>Outlet Manager</h1>
+          <p class="lead">Create, edit, delete outlets and manage aliases.</p>
+        </div>
+        <button class="ghost" onclick="resetForm()">New Outlet</button>
+      </header>
+
+      <div class="grid">
+        <div class="card">
+          <h2 id="form-title">Create Outlet</h2>
+          <p class="lead" id="form-subtitle">Provide outlet details and aliases.</p>
+          <label for="outlet-name">Outlet name</label>
+          <input type="text" id="outlet-name" placeholder="e.g., KOLAR" />
+
+          <label for="city">City</label>
+          <input type="text" id="city" placeholder="City" />
+
+          <label for="state">State</label>
+          <input type="text" id="state" placeholder="State" />
+
+          <label for="active">Active? (true/false)</label>
+          <input type="text" id="active" placeholder="true (default)" />
+
+          <label for="aliases">Aliases (comma-separated)</label>
+          <input type="text" id="aliases" placeholder="Owner Site, Stock Point names" />
+
+          <div class="controls">
+            <button class="button" onclick="saveOutlet()">Save</button>
+            <button class="ghost" onclick="resetForm()">Clear</button>
+          </div>
+          <div class="status" id="form-status"></div>
+        </div>
+
+        <div class="card">
+          <h2>Outlets</h2>
+          <p class="lead">Search, edit, delete, and manage aliases.</p>
+          <div class="controls" style="margin: 8px 0 12px;">
+            <input type="text" id="search" placeholder="Search outlet or alias" oninput="filterOutlets()" />
+            <button class="ghost" onclick="loadOutlets()">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Outlet</th>
+                  <th>City/State</th>
+                  <th>Aliases</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="outlet-rows">
+                <tr><td colspan="5" class="status">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.API_BASE;
+    const AUTH_KEY = "audit_auth";
+    const rawAuth = localStorage.getItem(AUTH_KEY);
+    const role = (() => {
+      if (!rawAuth) return "guest";
+      try { const a = JSON.parse(rawAuth); return a?.role || "guest"; } catch { return "guest"; }
+    })();
+    document.querySelectorAll("[data-roles]").forEach(el => {
+      const allowed = (el.getAttribute("data-roles") || "").split(",").map(s => s.trim());
+      if (allowed.length && !allowed.includes(role)) {
+        el.style.display = "none";
+      }
+    });
+    function logout() { localStorage.removeItem(AUTH_KEY); window.location.href = "login.html"; }
+
+    let outlets = [];
+    let editingId = null;
+
+    function parseBool(val) {
+      if (val === undefined || val === null) return undefined;
+      const v = String(val).trim().toLowerCase();
+      if (["true", "1", "yes"].includes(v)) return true;
+      if (["false", "0", "no"].includes(v)) return false;
+      return undefined;
+    }
+
+    function resetForm() {
+      editingId = null;
+      document.getElementById("form-title").textContent = "Create Outlet";
+      document.getElementById("form-subtitle").textContent = "Provide outlet details and aliases.";
+      document.getElementById("outlet-name").value = "";
+      document.getElementById("city").value = "";
+      document.getElementById("state").value = "";
+      document.getElementById("active").value = "";
+      document.getElementById("aliases").value = "";
+      document.getElementById("form-status").textContent = "";
+      document.getElementById("form-status").className = "status";
+    }
+
+    async function loadOutlets() {
+      const tbody = document.getElementById("outlet-rows");
+      tbody.innerHTML = `<tr><td colspan="5" class="status">Loading...</td></tr>`;
+      try {
+        const res = await fetch(`${API_BASE}/outlets?limit=500&offset=0`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        outlets = data;
+        renderOutlets(data);
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="status error">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderOutlets(list) {
+      const tbody = document.getElementById("outlet-rows");
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="status">No outlets yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = "";
+      list.forEach((o) => {
+        const tr = document.createElement("tr");
+        const aliasHtml = (o.aliases || []).map(a => `
+          <span class="pill">
+            ${a.alias_name}
+            <button class="alias-remove" onclick="deleteAlias(${o.outlet_id}, ${a.alias_id})">✕</button>
+          </span>
+        `).join("") || '<span class="tag">No aliases</span>';
+
+        tr.innerHTML = `
+          <td><strong>${o.outlet_name}</strong><div class="tag">${o.outlet_id}</div></td>
+          <td>${o.city || ""}<br/><span class="tag">${o.state || ""}</span></td>
+          <td>${aliasHtml}</td>
+          <td style="color:${o.is_active ? '#22c55e' : '#ef4444'};">${o.is_active ? 'Active' : 'Inactive'}</td>
+          <td>
+            <div class="controls">
+              <button class="ghost" onclick="startEdit(${o.outlet_id})">Edit</button>
+              <button class="ghost" style="color:var(--danger); border-color: var(--danger);" onclick="deleteOutlet(${o.outlet_id})">Delete</button>
+              <button class="ghost" onclick="promptAlias(${o.outlet_id})">Add Alias</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterOutlets() {
+      const term = document.getElementById("search").value.trim().toLowerCase();
+      if (!term) { renderOutlets(outlets); return; }
+      const filtered = outlets.filter(o => {
+        const nameMatch = (o.outlet_name || "").toLowerCase().includes(term);
+        const aliasMatch = (o.aliases || []).some(a => (a.alias_name || "").toLowerCase().includes(term));
+        return nameMatch || aliasMatch;
+      });
+      renderOutlets(filtered);
+    }
+
+    function startEdit(id) {
+      const o = outlets.find(x => x.outlet_id === id);
+      if (!o) return;
+      editingId = id;
+      document.getElementById("form-title").textContent = "Edit Outlet";
+      document.getElementById("form-subtitle").textContent = "Update outlet and aliases.";
+      document.getElementById("outlet-name").value = o.outlet_name || "";
+      document.getElementById("city").value = o.city || "";
+      document.getElementById("state").value = o.state || "";
+      document.getElementById("active").value = o.is_active ? "true" : "false";
+      document.getElementById("aliases").value = (o.aliases || []).map(a => a.alias_name).join(", ");
+      document.getElementById("form-status").textContent = "";
+      document.getElementById("form-status").className = "status";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function saveOutlet() {
+      const statusEl = document.getElementById("form-status");
+      statusEl.textContent = "Saving...";
+      statusEl.className = "status";
+
+      const outlet_name = document.getElementById("outlet-name").value.trim();
+      const city = document.getElementById("city").value.trim() || null;
+      const state = document.getElementById("state").value.trim() || null;
+      const aliases = document.getElementById("aliases").value
+        .split(",")
+        .map(a => a.trim())
+        .filter(Boolean);
+      const activeText = document.getElementById("active").value;
+      const is_active = parseBool(activeText);
+      if (!outlet_name) {
+        statusEl.textContent = "Outlet name is required.";
+        statusEl.className = "status error";
+        return;
+      }
+
+      const payload = { outlet_name, city, state, is_active: is_active === undefined ? true : is_active, aliases };
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API_BASE}/outlets/${editingId}` : `${API_BASE}/outlets`;
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        statusEl.textContent = "Saved.";
+        statusEl.className = "status success";
+        await loadOutlets();
+        resetForm();
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.className = "status error";
+      }
+    }
+
+    async function deleteOutlet(id) {
+      if (!confirm("Delete this outlet?")) return;
+      const tbody = document.getElementById("outlet-rows");
+      try {
+        const res = await fetch(`${API_BASE}/outlets/${id}`, { method: "DELETE" });
+        if (!res.ok && res.status !== 204) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || res.statusText);
+        }
+        outlets = outlets.filter(o => o.outlet_id !== id);
+        renderOutlets(outlets);
+        if (editingId === id) resetForm();
+      } catch (err) {
+        tbody.insertAdjacentHTML("afterbegin", `<tr><td colspan="5" class="status error">Error deleting: ${err.message}</td></tr>`);
+      }
+    }
+
+    async function promptAlias(id) {
+      const name = prompt("Alias to add (e.g., Owner Site/Stock Point):");
+      if (!name) return;
+      await addAlias(id, name);
+    }
+
+    async function addAlias(outletId, alias) {
+      try {
+        const res = await fetch(`${API_BASE}/outlets/${outletId}/aliases?alias_name=${encodeURIComponent(alias)}`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        outlets = outlets.map(o => o.outlet_id === outletId ? data : o);
+        renderOutlets(outlets);
+      } catch (err) {
+        alert(`Error adding alias: ${err.message}`);
+      }
+    }
+
+    async function deleteAlias(outletId, aliasId) {
+      if (!confirm("Delete this alias?")) return;
+      try {
+        const res = await fetch(`${API_BASE}/outlets/${outletId}/aliases/${aliasId}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        outlets = outlets.map(o => o.outlet_id === outletId ? data : o);
+        renderOutlets(outlets);
+      } catch (err) {
+        alert(`Error deleting alias: ${err.message}`);
+      }
+    }
+
+    loadOutlets();
+  </script>
+</body>
+</html>

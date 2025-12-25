@@ -23,6 +23,10 @@ class OutletCreate(OutletBase):
     aliases: List[str] = []
 
 
+class OutletUpdate(OutletBase):
+    aliases: List[str] = []
+
+
 class OutletOut(OutletBase):
     outlet_id: int
     created_at: Optional[datetime] = None

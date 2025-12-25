@@ -6,8 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.models.outlet import Outlet
-from app.schemas.outlet import OutletCreate, OutletOut
-from app.services.outlet_service import list_outlets, upsert_outlet
+from app.schemas.outlet import OutletCreate, OutletOut, OutletUpdate
+from app.services.outlet_service import (
+    add_alias,
+    delete_alias,
+    delete_outlet,
+    get_outlet,
+    list_outlets,
+    update_outlet,
+    upsert_outlet,
+)
 
 router = APIRouter()
 
@@ -21,6 +29,38 @@ router = APIRouter()
 def create_outlet(payload: OutletCreate, db: Session = Depends(get_db)) -> OutletOut:
     outlet = upsert_outlet(db, payload)
     return outlet
+
+
+@router.put(
+    "/{outlet_id}",
+    response_model=OutletOut,
+    summary="Update outlet and aliases",
+)
+def update_outlet_api(
+    outlet_id: int,
+    payload: OutletUpdate,
+    db: Session = Depends(get_db),
+) -> OutletOut:
+    try:
+        return update_outlet(db, outlet_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.delete(
+    "/{outlet_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete outlet",
+)
+def delete_outlet_api(
+    outlet_id: int,
+    db: Session = Depends(get_db),
+):
+    try:
+        delete_outlet(db, outlet_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    return None
 
 
 @router.get(
@@ -54,3 +94,35 @@ def search_outlets(
     if not results:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No outlets found")
     return results
+
+
+@router.post(
+    "/{outlet_id}/aliases",
+    response_model=OutletOut,
+    summary="Add an alias to outlet",
+)
+def add_alias_api(
+    outlet_id: int,
+    alias_name: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+) -> OutletOut:
+    try:
+        return add_alias(db, outlet_id, alias_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.delete(
+    "/{outlet_id}/aliases/{alias_id}",
+    response_model=OutletOut,
+    summary="Delete an alias from outlet",
+)
+def delete_alias_api(
+    outlet_id: int,
+    alias_id: int,
+    db: Session = Depends(get_db),
+) -> OutletOut:
+    try:
+        return delete_alias(db, outlet_id, alias_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
