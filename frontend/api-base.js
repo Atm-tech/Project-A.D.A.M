@@ -11,7 +11,9 @@
   const defaultBase =
     hostname === "localhost" || hostname === "127.0.0.1"
       ? "http://localhost:8000/api/v1"
-      : `${window.location.origin}/api/v1`;
+      : hostname === "project-a-d-a-m.vercel.app"
+        ? "http://localhost:8000/api/v1"
+        : `${window.location.origin}/api/v1`;
 
   const resolved =
     (queryOverride && queryOverride.trim()) ||
