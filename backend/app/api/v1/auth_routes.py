@@ -37,7 +37,7 @@ def register(
     full_name: str = Form(...),
     username: str = Form(...),
     phone: str = Form(...),
-    outlet_id: int = Form(...),
+    outlet_id: int | None = Form(default=None),
     password: str = Form(...),
     confirm_password: str = Form(...),
     db: Session = Depends(get_db),
@@ -51,9 +51,11 @@ def register(
         existing_phone = db.query(AppUser).filter(AppUser.phone == phone).first()
         if existing_phone:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Phone already registered.")
-    outlet = db.query(Outlet).filter(Outlet.outlet_id == outlet_id).first()
-    if not outlet:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Outlet not found.")
+    outlet = None
+    if outlet_id is not None:
+        outlet = db.query(Outlet).filter(Outlet.outlet_id == outlet_id).first()
+        if not outlet:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Outlet not found.")
     user = AppUser(
         full_name=full_name,
         username=username,
@@ -62,7 +64,7 @@ def register(
         role="user",
         status="pending",
         outlet_id=None,
-        requested_outlet_id=outlet_id,
+        requested_outlet_id=outlet.outlet_id if outlet else None,
     )
     db.add(user)
     db.commit()
@@ -88,6 +90,7 @@ def approve_user(
     approve: bool = Form(...),
     role: str = Form(default="user"),
     approved_by: str = Form(default="admin"),
+    outlet_id: int | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
     user = db.query(AppUser).filter(AppUser.user_id == user_id).first()
@@ -96,9 +99,18 @@ def approve_user(
     if user.status != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not pending.")
     if approve:
+        resolved_outlet_id = outlet_id if outlet_id is not None else user.requested_outlet_id
+        if resolved_outlet_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An outlet must be specified when approving a user.",
+            )
+        outlet = db.query(Outlet).filter(Outlet.outlet_id == resolved_outlet_id).first()
+        if not outlet:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Outlet not found.")
         user.status = "active"
         user.role = role
-        user.outlet_id = user.requested_outlet_id
+        user.outlet_id = resolved_outlet_id
         user.approved_by = approved_by
         user.approved_at = datetime.utcnow()
     else:

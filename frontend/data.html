@@ -150,8 +150,13 @@
       },
       perpetual: {
         title: "Perpetual Data",
-        desc: "Perpetual outlet-level stock for reconciliation.",
+        desc: "Computed perpetual (opening + purchases - purchase returns - sales).",
         endpoint: `${API_BASE}/perpetual/?limit=200&offset=0`,
+      },
+      grt: {
+        title: "Purchase Returns (GRT)",
+        desc: "Purchase return rows (GRT No., barcode, qty, date).",
+        endpoint: `${API_BASE}/grt/?limit=200&offset=0`,
       },
       outlets: {
         title: "Outlets",

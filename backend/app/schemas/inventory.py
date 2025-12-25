@@ -38,6 +38,29 @@ class SaleOut(SaleBase):
     uploaded_at: Optional[datetime] = None
 
 
+class PurchaseReturnBase(BaseModel):
+    barcode: str
+    article_name: Optional[str] = None
+    invoice_no: Optional[str] = None
+    entry_no: str
+    entry_date: date
+    supplier_name: str
+    category_6: Optional[str] = None
+
+    outlet_id: int
+    qty: Decimal
+    amount: Decimal
+    uploaded_by: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PurchaseReturnOut(PurchaseReturnBase):
+    grt_id: int
+    uploaded_at: Optional[datetime] = None
+
+
 class PerpetualClosingBase(BaseModel):
     barcode: str
     outlet_id: int

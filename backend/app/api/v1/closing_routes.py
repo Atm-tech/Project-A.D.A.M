@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.deps import get_db
 from app.models.inventory import ClosingStock
 from app.schemas.inventory import ClosingStockOut
-from app.services.inventory_service import import_closing_stock_from_excel
+from app.services.inventory_service import import_closing_stock_from_excel, recompute_perpetual_closing
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -77,6 +77,11 @@ async def upload_closing_stock(
     df = _load_df(content, file.filename)
     try:
         stats = import_closing_stock_from_excel(db, df, uploaded_by=uploaded_by)
+        try:
+            perpetual_stats = recompute_perpetual_closing(db, uploaded_by=uploaded_by)
+        except Exception as exc:
+            logger.error("Perpetual recompute after closing upload failed: %s", exc, exc_info=True)
+            perpetual_stats = {"error": "Perpetual recompute failed"}
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -86,6 +91,7 @@ async def upload_closing_stock(
         "status": "success",
         "message": "Closing stock ingested.",
         **stats,
+        "perpetual": perpetual_stats,
     }
 
 

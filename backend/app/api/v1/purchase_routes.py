@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.models.purchase import PurchaseRaw
+from app.services.inventory_service import recompute_perpetual_closing
 from app.services.purchase_service import import_purchase_from_excel
 from app.schemas.purchase import PurchaseRawOut
 
@@ -77,6 +78,11 @@ async def upload_purchase_excel(
 
     try:
         stats = import_purchase_from_excel(db, df, uploaded_by=uploaded_by)
+        try:
+            perpetual_stats = recompute_perpetual_closing(db, uploaded_by=uploaded_by)
+        except Exception as exc:
+            logger.error("Perpetual recompute after purchase upload failed: %s", exc, exc_info=True)
+            perpetual_stats = {"error": "Perpetual recompute failed"}
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -93,6 +99,7 @@ async def upload_purchase_excel(
         "status": "success",
         "message": "Purchase file processed.",
         **stats,
+        "perpetual": perpetual_stats,
     }
 
 
