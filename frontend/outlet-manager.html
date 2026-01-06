@@ -43,6 +43,7 @@
       <a class="nav-link" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
       <a class="nav-link" href="upload.html" data-roles="admin,manager">Uploads</a>
       <a class="nav-link" href="data.html" data-roles="admin,manager">Data Viewer</a>
+      <a class="nav-link" href="analytics.html" data-roles="admin,manager">Analytics</a>
       <a class="nav-link" href="user-manager.html" data-roles="admin">User Manager</a>
       <a class="nav-link active" href="outlet-manager.html" data-roles="admin">Outlet Manager</a>
       <button class="nav-link" style="text-align:left; border:1px solid var(--border);" onclick="logout()" data-roles="admin,manager,user">Logout</button>
@@ -65,10 +66,10 @@
           <input type="text" id="outlet-name" placeholder="e.g., KOLAR" />
 
           <label for="city">City</label>
-          <input type="text" id="city" placeholder="City" />
+          <input type="text" id="city" placeholder="BHOPAL" value="BHOPAL" />
 
           <label for="state">State</label>
-          <input type="text" id="state" placeholder="State" />
+          <input type="text" id="state" placeholder="MADHYAPRADESH" value="MADHYAPRADESH" />
 
           <label for="active">Active? (true/false)</label>
           <input type="text" id="active" placeholder="true (default)" />
@@ -112,6 +113,8 @@
   </div>
 
   <script>
+    const DEFAULT_CITY = "BHOPAL";
+    const DEFAULT_STATE = "MADHYAPRADESH";
     const API_BASE = window.API_BASE;
     const AUTH_KEY = "audit_auth";
     const rawAuth = localStorage.getItem(AUTH_KEY);
@@ -143,8 +146,8 @@
       document.getElementById("form-title").textContent = "Create Outlet";
       document.getElementById("form-subtitle").textContent = "Provide outlet details and aliases.";
       document.getElementById("outlet-name").value = "";
-      document.getElementById("city").value = "";
-      document.getElementById("state").value = "";
+      document.getElementById("city").value = DEFAULT_CITY;
+      document.getElementById("state").value = DEFAULT_STATE;
       document.getElementById("active").value = "";
       document.getElementById("aliases").value = "";
       document.getElementById("form-status").textContent = "";

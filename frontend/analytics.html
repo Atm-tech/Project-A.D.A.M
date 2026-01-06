@@ -3,27 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Console</title>
+  <title>Analytics</title>
   <link rel="stylesheet" href="common.css" />
   <script src="api-base.js"></script>
   <style>
-    .nav-link.active { border-color: var(--accent-2); color: var(--accent); }
     header {
-      padding: 32px 28px 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      padding: 28px 24px 12px;
     }
-    h1 {
-      margin: 0;
-      font-size: 26px;
-      letter-spacing: -0.4px;
-    }
-    p.lead {
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+    p.lead { margin: 6px 0 0; color: var(--muted); }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -39,31 +27,25 @@
       box-shadow: 0 18px 40px var(--shadow);
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 10px;
     }
     .card h2 { margin: 0 0 6px; font-size: 18px; }
-    .card p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
-    a.button {
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    .button {
       display: inline-flex;
       justify-content: center;
       align-items: center;
-      gap: 6px;
       text-decoration: none;
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
       color: #0b0b0d;
-      padding: 12px 14px;
+      padding: 10px 12px;
       border-radius: 10px;
       font-weight: 700;
       letter-spacing: 0.1px;
-      box-shadow: 0 12px 30px rgba(255,255,255,0.12);
-      transition: transform 0.05s ease, box-shadow 0.2s ease;
+      border: none;
+      cursor: pointer;
     }
-    a.button:hover { transform: translateY(-1px); }
-    footer {
-      padding: 12px 20px 24px;
-      color: var(--muted);
-      font-size: 13px;
-    }
+    .status { color: var(--muted); font-size: 13px; padding: 0 20px 20px; }
   </style>
 </head>
 <body>
@@ -72,47 +54,39 @@
       <div class="brand">
         <img class="logo-big" src="assets/ring.png" alt="App logo" />
       </div>
-      <a class="nav-link active" href="index.html" data-roles="admin">Console</a>
+      <a class="nav-link" href="index.html" data-roles="admin">Console</a>
       <a class="nav-link" href="audit.html" data-roles="admin,manager,user">Audit Manager</a>
       <a class="nav-link" href="upload.html" data-roles="admin,manager">Uploads</a>
       <a class="nav-link" href="data.html" data-roles="admin,manager">Data Viewer</a>
-      <a class="nav-link" href="analytics.html" data-roles="admin,manager">Analytics</a>
+      <a class="nav-link active" href="analytics.html" data-roles="admin,manager">Analytics</a>
       <a class="nav-link" href="user-manager.html" data-roles="admin">User Manager</a>
       <a class="nav-link" href="outlet-manager.html" data-roles="admin">Outlet Manager</a>
       <button class="nav-link" style="text-align:left; border:1px solid var(--border);" onclick="logout()" data-roles="admin,manager,user">Logout</button>
     </aside>
+
     <main>
       <header>
-        <div>
-          <h1>Console</h1>
-          <p class="lead">Pick a workspace: Uploads or Data Viewer.</p>
-        </div>
+        <h1>Analytics</h1>
+        <p class="lead">Workspace for trends, anomalies, and operational insights.</p>
       </header>
 
       <div class="grid">
         <div class="card">
-          <div>
-            <h2>Uploads</h2>
-            <p>Upload PKB, Purchase, Closing Stock, Sales, or Perpetual files.</p>
-          </div>
-          <a class="button" href="upload.html">Open Uploads</a>
+          <h2>Ready for your specs</h2>
+          <p>Tell me the metrics, slices, and charts you want; this panel will host them.</p>
+          <button class="button" onclick="captureIntent()">Set the plan</button>
         </div>
         <div class="card">
-          <div>
-            <h2>Data Viewer</h2>
-            <p>View datasets and download CSV/Excel extracts.</p>
-          </div>
-          <a class="button" href="data.html">Open Data Viewer</a>
+          <h2>Data sources</h2>
+          <p>We can blend PKB, purchases, sales, closing/perpetual, and audits. Call out the joins and filters you expect.</p>
+          <button class="button" onclick="captureIntent()">List required datasets</button>
         </div>
       </div>
 
-  <footer id="apiBaseFooter"></footer>
-  <script>
-    const footer = document.getElementById("apiBaseFooter");
-    footer.innerHTML = `API base: ${window.API_BASE} (override via <code>window.API_BASE</code> or ?apiBase=...)`;
-  </script>
+      <div id="status" class="status"></div>
     </main>
   </div>
+
   <script>
     const AUTH_KEY = "audit_auth";
     const raw = localStorage.getItem(AUTH_KEY);
@@ -128,23 +102,15 @@
     });
     if (!raw) {
       window.location.href = "login.html";
-    } else {
-      try {
-        const auth = JSON.parse(raw);
-        if (!auth?.role) {
-          window.location.href = "login.html";
-        } else if (auth.role === "admin") {
-          // stay on console
-        } else {
-          window.location.href = "audit.html";
-        }
-      } catch {
-        window.location.href = "login.html";
-      }
     }
     function logout() {
       localStorage.removeItem(AUTH_KEY);
       window.location.href = "login.html";
+    }
+
+    function captureIntent() {
+      const status = document.getElementById("status");
+      status.textContent = "Tell me the analytics views you want (KPIs, dimensions, filters, and visuals). I'll wire them here.";
     }
   </script>
 </body>
