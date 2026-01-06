@@ -97,8 +97,11 @@ def update_outlet(db: Session, outlet_id: int, payload: OutletUpdate) -> Outlet:
 
 
 def delete_outlet(db: Session, outlet_id: int) -> None:
+    """
+    Soft-delete an outlet: mark inactive to avoid FK integrity issues with linked records.
+    """
     outlet = get_outlet(db, outlet_id)
-    db.delete(outlet)
+    outlet.is_active = False
     db.commit()
 
 
